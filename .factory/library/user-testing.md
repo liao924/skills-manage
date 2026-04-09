@@ -10,7 +10,7 @@
 1. `pnpm tauri dev` must be running (starts both Vite and Tauri)
 2. Wait for the webview to load at localhost:24200
 3. The scanner runs automatically on startup — wait for sidebar to populate before testing
-4. If port `1420` is already occupied by another local dev server, start Tauri with a merged config override on another allowed port in `1420-1430` (for example `pnpm tauri dev -c '{"build":{"beforeDevCommand":"pnpm exec vite --port 1422","devUrl":"http://localhost:1422"}}'`) and point validators at that port.
+4. If port `24200` is already occupied, start Tauri with a merged config override on another allowed port in `24200-24210` (for example `pnpm tauri dev -c '{"build":{"beforeDevCommand":"pnpm exec vite --port 24202","devUrl":"http://localhost:24202"}}'`) and point validators at that port.
 
 **Known constraints:**
 - Tauri file dialogs (import/export) cannot be tested via agent-browser; test the underlying logic via the UI state changes instead.
@@ -29,10 +29,11 @@
 
 ## Flow Validator Guidance: agent-browser
 
-- Use the shared dev server at `http://localhost:1420`.
-- For user-testing validation, run the app with `HOME=/tmp/skills-manage-test-fixtures/foundation-home` so scanning uses an isolated fixture home instead of the real user home.
+- Use the shared dev server at `http://localhost:24200` unless the assigned isolation context specifies an alternate port.
+- For user-testing validation, run the app with an assigned isolated `HOME` under `/tmp/skills-manage-test-fixtures/` so scanning uses fixture data instead of the real user home.
 - Stay within that fixture home and the assigned evidence/output directories; do not inspect or modify real `~/.*skills/` directories.
-- The foundation sidebar assertions share one startup scan and one backing SQLite DB under the isolated HOME, so run them in a single validator rather than concurrent validators.
+- For milestone reruns that rely on native macOS Tauri window automation, use a single validator at a time because window focus and AX interactions are global shared state.
+- The foundation and platform-views assertions each share one startup scan and one backing SQLite DB under the isolated HOME, so keep each milestone's assertion set serialized inside its assigned validator.
 - If the browser preview does not reflect Tauri state, use the native `skills-manage` window as the real user surface and capture the window with a Quartz-based screenshot for evidence.
 
 ## Native macOS Tauri Automation

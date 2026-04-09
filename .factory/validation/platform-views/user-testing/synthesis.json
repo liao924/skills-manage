@@ -1,83 +1,63 @@
 {
   "milestone": "platform-views",
-  "round": 1,
+  "round": 2,
   "status": "fail",
   "assertionsSummary": {
-    "total": 16,
-    "passed": 2,
-    "failed": 1,
-    "blocked": 13
+    "total": 14,
+    "passed": 6,
+    "failed": 4,
+    "blocked": 4
   },
   "passedAssertions": [
-    "VAL-PLAT-003",
-    "VAL-PLAT-006"
+    "VAL-SCAN-003",
+    "VAL-SCAN-007",
+    "VAL-CENT-001",
+    "VAL-CENT-002",
+    "VAL-CENT-003",
+    "VAL-CENT-006"
   ],
   "failedAssertions": [
     {
+      "id": "VAL-SCAN-006",
+      "reason": "After adding `qa-helper` under the isolated `~/.agents/skills/` fixture and clicking refresh, the Central Skills list stayed at 3 entries and SQLite never recorded the new skill."
+    },
+    {
       "id": "VAL-PLAT-001",
-      "reason": "Claude Code and Codex platform views render the empty state even though the sidebar badges and SQLite database both show installed skills."
+      "reason": "Claude Code and Codex CLI platform views still render the empty state even though the sidebar badges and isolated SQLite database both show installed skills."
+    },
+    {
+      "id": "VAL-CENT-004",
+      "reason": "Submitting a single-platform install shows `batch_install_to_agents missing required key skillId`, so no symlink is created."
+    },
+    {
+      "id": "VAL-CENT-005",
+      "reason": "Submitting a multi-platform install shows the same missing `skillId` command error, so batch install never completes."
     }
   ],
   "blockedAssertions": [
     {
-      "id": "VAL-SCAN-003",
-      "blockedBy": "Platform view skill cards never rendered for populated agents, so parsed name/description metadata was not visible in the user surface."
-    },
-    {
       "id": "VAL-SCAN-004",
-      "blockedBy": "Platform view skill cards never rendered for populated agents, so the mixed symlink/copy source indicators could not be verified."
-    },
-    {
-      "id": "VAL-SCAN-006",
-      "blockedBy": "The Central Skills refresh surface stayed empty because the scanner classified all central skills with `is_central = 0`, leaving no baseline data to verify manual rescan behavior."
-    },
-    {
-      "id": "VAL-SCAN-007",
-      "blockedBy": "The scanner classified central skills as non-central when `codex` shared `~/.agents/skills/`, so the Central Skills view had no rows to validate deduplicated link status."
+      "blockedBy": "Blocked by `VAL-PLAT-001`: populated platform views still render no skill cards, so mixed symlink/copy source indicators never appear."
     },
     {
       "id": "VAL-PLAT-002",
-      "blockedBy": "Blocked by `VAL-PLAT-001`: no skill cards rendered for populated platform views, so source indicators were absent."
+      "blockedBy": "Blocked by `VAL-PLAT-001`: no rendered platform cards were available to show source indicators."
     },
     {
       "id": "VAL-PLAT-004",
-      "blockedBy": "Blocked by `VAL-PLAT-001`: the search box had no rendered skill cards to filter in populated platform views."
+      "blockedBy": "Blocked by `VAL-PLAT-001`: the populated platform views exposed only the empty state, leaving no visible list for search to filter."
     },
     {
       "id": "VAL-PLAT-005",
-      "blockedBy": "Blocked by `VAL-PLAT-001`: no platform skill cards rendered, so there was nothing clickable to validate navigation into the next-milestone detail route."
-    },
-    {
-      "id": "VAL-CENT-001",
-      "blockedBy": "The scanner stored every central-directory skill with `is_central = 0`, so `get_central_skills` returned an empty list while the sidebar badge still showed 3."
-    },
-    {
-      "id": "VAL-CENT-002",
-      "blockedBy": "Blocked by `VAL-CENT-001`: the Central Skills list never rendered canonical skill rows, so per-platform link badges were absent."
-    },
-    {
-      "id": "VAL-CENT-003",
-      "blockedBy": "Blocked by `VAL-CENT-001`: the Central Skills list never rendered canonical skill rows, so no `Install to...` dialog could be opened."
-    },
-    {
-      "id": "VAL-CENT-004",
-      "blockedBy": "Blocked by `VAL-CENT-001`: the Central Skills list never rendered a canonical skill row to initiate a symlink install flow."
-    },
-    {
-      "id": "VAL-CENT-005",
-      "blockedBy": "Blocked by `VAL-CENT-001`: the Central Skills list never rendered a canonical skill row to initiate a batch install flow."
-    },
-    {
-      "id": "VAL-CENT-006",
-      "blockedBy": "Blocked by `VAL-CENT-001`: the Central Skills list never rendered canonical skill rows, so central-search behavior could not be exercised."
+      "blockedBy": "Blocked by `VAL-PLAT-001`: no platform skill card rendered, so there was nothing clickable to navigate into the detail route."
     }
   ],
   "appliedUpdates": [
     {
       "target": "user-testing.md",
-      "description": "Documented a reliable macOS-native fallback for Tauri validation using PyObjC ApplicationServices AXUIElement button presses plus Quartz window capture when browser preview and System Events are insufficient.",
-      "source": "flow-report"
+      "description": "Updated user-testing guidance to use the current 24200-24210 port range and to serialize native macOS Tauri reruns that share one app window and AX state.",
+      "source": "setup"
     }
   ],
-  "previousRound": null
+  "previousRound": ".factory/validation/platform-views/user-testing/synthesis.round1.json"
 }

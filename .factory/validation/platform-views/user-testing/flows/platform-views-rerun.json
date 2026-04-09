@@ -1,0 +1,349 @@
+{
+  "groupId": "platform-views-rerun",
+  "testedAt": "2026-04-10T00:05:00Z",
+  "isolation": {
+    "appUrl": "http://localhost:24200",
+    "home": "/tmp/skills-manage-test-fixtures/platform-views-home-rerun-eca35b",
+    "startupLog": "platform-views/platform-views-rerun/tauri-startup-log-tail.txt",
+    "evidenceDir": "platform-views/platform-views-rerun"
+  },
+  "toolsUsed": [
+    "ApplicationServices AXUIElement",
+    "macOS screencapture",
+    "sqlite3",
+    "Read",
+    "Execute"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-SCAN-003",
+      "title": "Scanner parses SKILL.md frontmatter",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Compared the Central Skills cards against the isolated fixture SKILL.md files for `Deploy Helper` and `Frontend Design`.",
+          "expected": "The UI should show the frontmatter `name` and `description` values parsed from SKILL.md.",
+          "observed": "The Central Skills view showed `Deploy Helper — Prepare deployment steps, rollout checks, and rollback plans.` and `Frontend Design — Build distinctive frontend interfaces with high design quality.`, matching the SKILL.md frontmatter in the isolated fixture home."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-views/platform-views-rerun/central-list.png"
+        ],
+        "consoleErrors": "n/a for native-window validation",
+        "network": "n/a",
+        "log": "platform-views/platform-views-rerun/tauri-startup-log-tail.txt"
+      },
+      "issues": ""
+    },
+    {
+      "id": "VAL-SCAN-004",
+      "title": "Scanner detects symlinks vs copies",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Opened the populated Claude Code and Codex CLI platform views after startup scan and compared them with the isolated fixture filesystem and SQLite installation rows.",
+          "expected": "The platform views should render skill cards labeled `Central Skills · symlink` and `独立安装 · copy` for mixed-source installations.",
+          "observed": "Both populated platform views rendered the empty state instead of any skill cards, so no source indicators appeared even though the fixture contains both symlinked and copied installs."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-views/platform-views-rerun/claude-empty-platform.png",
+          "platform-views/platform-views-rerun/codex-empty-platform.png"
+        ],
+        "consoleErrors": "n/a for native-window validation",
+        "network": "n/a",
+        "log": "platform-views/platform-views-rerun/tauri-startup-log-tail.txt"
+      },
+      "issues": "Blocked by the platform-view rendering bug captured under VAL-PLAT-001."
+    },
+    {
+      "id": "VAL-SCAN-006",
+      "title": "Manual rescan updates data",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Added a new isolated fixture skill at `~/.agents/skills/qa-helper/SKILL.md` with valid frontmatter, then clicked the Central Skills refresh button.",
+          "expected": "The Central Skills sidebar badge and list should update to include the new `QA Helper` skill without restarting the app.",
+          "observed": "After refresh, the sidebar still showed `Central Skills 3`, the list still showed only the original three skills, and the SQLite database still contained no `QA Helper` row."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-views/platform-views-rerun/central-list.png",
+          "platform-views/platform-views-rerun/central-after-rescan-no-change.png"
+        ],
+        "consoleErrors": "No browser console surface was available on the native Tauri window. The refresh interaction produced no visible update.",
+        "network": "n/a",
+        "log": "platform-views/platform-views-rerun/tauri-startup-log-tail.txt"
+      },
+      "issues": "Refresh appears to reload the current Central Skills data without rescanning the filesystem for new skills."
+    },
+    {
+      "id": "VAL-SCAN-007",
+      "title": "Deduplication across platforms",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Inspected the Frontend Design row in Central Skills while the same skill was present in the central directory and installed to multiple platforms in the isolated fixture home.",
+          "expected": "A shared canonical skill should appear once in Central Skills with link indicators for each installed platform.",
+          "observed": "The Central Skills view showed exactly one `Frontend Design` card with platform link indicators for Claude Code, Codex CLI, Cursor, and Factory Droid rather than duplicate cards."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-views/platform-views-rerun/central-list.png"
+        ],
+        "consoleErrors": "n/a for native-window validation",
+        "network": "n/a",
+        "log": "platform-views/platform-views-rerun/tauri-startup-log-tail.txt"
+      },
+      "issues": ""
+    },
+    {
+      "id": "VAL-PLAT-001",
+      "title": "Platform view renders skill list",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Opened the Claude Code and Codex CLI platform pages from the sidebar in the native Tauri window.",
+          "expected": "Each page should render a skill card for every discovered installation in that platform directory.",
+          "observed": "Both pages showed `No skills installed` even though the sidebar badges showed Claude Code = 2 and Codex CLI = 3."
+        },
+        {
+          "action": "Queried the isolated SQLite database and compared it with the fixture filesystem.",
+          "expected": "The UI should match the persisted scan results.",
+          "observed": "The database contained two Claude Code installations and three Codex installations, confirming the user-facing list stayed empty despite real scan data."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-views/platform-views-rerun/claude-empty-platform.png",
+          "platform-views/platform-views-rerun/codex-empty-platform.png"
+        ],
+        "consoleErrors": "n/a for native-window validation",
+        "network": "n/a",
+        "log": "platform-views/platform-views-rerun/tauri-startup-log-tail.txt"
+      },
+      "issues": "Populated platform routes navigate correctly but do not render their skill cards."
+    },
+    {
+      "id": "VAL-PLAT-002",
+      "title": "Skill card shows source indicator",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Reviewed the populated Claude Code and Codex CLI routes after startup scan.",
+          "expected": "Rendered platform cards should show `Central Skills · symlink` or `独立安装 · copy` as appropriate.",
+          "observed": "No platform cards rendered at all, so the source indicator surface was unavailable."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-views/platform-views-rerun/claude-empty-platform.png",
+          "platform-views/platform-views-rerun/codex-empty-platform.png"
+        ],
+        "consoleErrors": "n/a for native-window validation",
+        "network": "n/a",
+        "log": "platform-views/platform-views-rerun/tauri-startup-log-tail.txt"
+      },
+      "issues": "Blocked by VAL-PLAT-001."
+    },
+    {
+      "id": "VAL-PLAT-004",
+      "title": "Search filters skills in platform view",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Inspected the search field on the populated Claude Code and Codex CLI pages.",
+          "expected": "Typing should filter a visible skill list by name or description.",
+          "observed": "Because the list surface never rendered any cards, there was nothing available to filter."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-views/platform-views-rerun/claude-empty-platform.png",
+          "platform-views/platform-views-rerun/codex-empty-platform.png"
+        ],
+        "consoleErrors": "n/a for native-window validation",
+        "network": "n/a",
+        "log": "platform-views/platform-views-rerun/tauri-startup-log-tail.txt"
+      },
+      "issues": "Blocked by VAL-PLAT-001."
+    },
+    {
+      "id": "VAL-PLAT-005",
+      "title": "Click skill navigates to detail",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Opened the populated platform routes and checked whether a skill card was available to click.",
+          "expected": "A rendered platform skill card should be clickable and navigate into the detail route.",
+          "observed": "No skill cards rendered on the populated platform views, so there was no user-surface element available to click."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-views/platform-views-rerun/claude-empty-platform.png",
+          "platform-views/platform-views-rerun/codex-empty-platform.png"
+        ],
+        "consoleErrors": "n/a for native-window validation",
+        "network": "n/a",
+        "log": "platform-views/platform-views-rerun/tauri-startup-log-tail.txt"
+      },
+      "issues": "Blocked by VAL-PLAT-001."
+    },
+    {
+      "id": "VAL-CENT-001",
+      "title": "Central Skills view lists canonical skills",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Opened the Central Skills route in the native Tauri window after startup scan.",
+          "expected": "The list should show every canonical skill discovered in `~/.agents/skills/`.",
+          "observed": "The view rendered three canonical skills — Deploy Helper, API Auditor, and Frontend Design — matching the central directory count in the sidebar and the isolated SQLite database."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-views/platform-views-rerun/central-list.png"
+        ],
+        "consoleErrors": "n/a for native-window validation",
+        "network": "n/a",
+        "log": "platform-views/platform-views-rerun/tauri-startup-log-tail.txt"
+      },
+      "issues": ""
+    },
+    {
+      "id": "VAL-CENT-002",
+      "title": "Per-platform link status displayed",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Inspected the Central Skills cards in the native window and compared the badges with the isolated installation rows.",
+          "expected": "Each canonical skill should show linked platforms with checkmarks and unlinked platforms with crosses.",
+          "observed": "The Frontend Design card showed linked platforms in green and unlinked platforms in gray, while Deploy Helper and API Auditor each showed only Codex CLI as linked."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-views/platform-views-rerun/central-list.png"
+        ],
+        "consoleErrors": "n/a for native-window validation",
+        "network": "n/a",
+        "log": "platform-views/platform-views-rerun/tauri-startup-log-tail.txt"
+      },
+      "issues": ""
+    },
+    {
+      "id": "VAL-CENT-003",
+      "title": "Install dialog opens with platform checkboxes",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Clicked `Install to...` for Deploy Helper and inspected the dialog via native accessibility nodes and screenshot evidence.",
+          "expected": "The dialog should open with per-platform checkboxes plus a symlink/copy method selector.",
+          "observed": "The dialog opened with platform checkboxes, disabled already-linked Codex CLI, and two install-method radio choices: `Symlink` and `Copy`."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-views/platform-views-rerun/central-install-dialog.png"
+        ],
+        "consoleErrors": "n/a for native-window validation",
+        "network": "n/a",
+        "log": "platform-views/platform-views-rerun/tauri-startup-log-tail.txt"
+      },
+      "issues": ""
+    },
+    {
+      "id": "VAL-CENT-004",
+      "title": "Symlink install creates working link",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Selected only Claude Code in the Deploy Helper install dialog and confirmed the default symlink method.",
+          "expected": "The app should create a relative symlink in `~/.claude/skills/`, update link status, and close the dialog successfully.",
+          "observed": "Submitting the dialog left it open and showed `invalid args `skillId` for command `batch_install_to_agents`: command batch_install_to_agents missing required key skillId`; no new Claude Code install appeared."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-views/platform-views-rerun/deploy-helper-install-error.png"
+        ],
+        "consoleErrors": "The native dialog surfaced a command argument error instead of a successful install.",
+        "network": "n/a",
+        "log": "platform-views/platform-views-rerun/tauri-startup-log-tail.txt"
+      },
+      "issues": "The install action does not pass the required `skillId` argument to `batch_install_to_agents`."
+    },
+    {
+      "id": "VAL-CENT-005",
+      "title": "Batch install to multiple platforms",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Selected Cursor and Factory Droid in the API Auditor install dialog and submitted the batch install.",
+          "expected": "The app should create installs for both selected platforms in one operation.",
+          "observed": "The dialog stayed open and showed the same `missing required key skillId` command error, so neither selected platform was installed."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-views/platform-views-rerun/api-auditor-batch-install-error.png"
+        ],
+        "consoleErrors": "The native dialog surfaced a Tauri command argument error instead of completing the batch install.",
+        "network": "n/a",
+        "log": "platform-views/platform-views-rerun/tauri-startup-log-tail.txt"
+      },
+      "issues": "Batch install is blocked by the same missing `skillId` argument bug as single-platform install."
+    },
+    {
+      "id": "VAL-CENT-006",
+      "title": "Search filters Central Skills",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Entered `Frontend` into the Central Skills search field in the native Tauri window.",
+          "expected": "The list should filter in real time to the matching skill card.",
+          "observed": "The UI reduced the list to only the Frontend Design card while the search field contained `Frontend`."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-views/platform-views-rerun/central-search-frontend.png"
+        ],
+        "consoleErrors": "n/a for native-window validation",
+        "network": "n/a",
+        "log": "platform-views/platform-views-rerun/tauri-startup-log-tail.txt"
+      },
+      "issues": ""
+    }
+  ],
+  "frictions": [
+    {
+      "description": "The browser preview does not expose Tauri globals, so Tauri-backed assertions required the native macOS window.",
+      "resolution": "Used AXUIElement-based native automation plus window screenshots for the actual user surface."
+    },
+    {
+      "description": "Launching a nested `user-testing-flow-validator` subagent failed immediately because worker subagents are not permitted to self-approve command execution in this session.",
+      "resolution": "Completed the assigned rerun manually within the worker session and recorded the deviation for handoff."
+    }
+  ],
+  "blockers": [
+    {
+      "id": "platform-view-empty-state-bug",
+      "description": "Platform pages still render `No skills installed` even when the same scan populated non-zero sidebar counts and installation rows in SQLite."
+    },
+    {
+      "id": "central-install-missing-skill-id",
+      "description": "Submitting the Central Skills install dialog calls `batch_install_to_agents` without a required `skillId` argument, so both single and multi-platform installs fail."
+    },
+    {
+      "id": "central-refresh-no-rescan",
+      "description": "Clicking the Central Skills refresh button does not detect newly added skills in the central directory during the active session."
+    }
+  ],
+  "summary": "Re-ran platform-views user testing against the native Tauri app on port 24200 with an isolated fixture HOME. Central Skills listing, deduplication, dialog opening, and search now work, but platform views still render empty states, Central install actions fail with a missing `skillId` command argument, and the refresh button does not pick up newly added central skills."
+}

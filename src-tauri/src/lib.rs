@@ -47,7 +47,21 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::scanner::scan_all_skills
+            // Scanner
+            commands::scanner::scan_all_skills,
+            // Agents
+            commands::agents::get_agents,
+            commands::agents::detect_agents,
+            commands::agents::add_custom_agent,
+            // Linker
+            commands::linker::install_skill_to_agent,
+            commands::linker::uninstall_skill_from_agent,
+            commands::linker::batch_install_to_agents,
+            // Skills
+            commands::skills::get_skills_by_agent,
+            commands::skills::get_central_skills,
+            commands::skills::get_skill_detail,
+            commands::skills::read_skill_content,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

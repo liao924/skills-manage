@@ -1,0 +1,207 @@
+{
+  "groupId": "platform-views-ca3dac53",
+  "testedAt": "2026-04-10T00:46:00Z",
+  "isolation": {
+    "appUrl": "http://localhost:24200",
+    "home": "/tmp/skills-manage-test-fixtures/platform-views-home-ca3dac53",
+    "startupLog": "n/a",
+    "evidenceDir": "platform-views/platform-views-ca3dac53"
+  },
+  "toolsUsed": [
+    "ApplicationServices AXUIElement",
+    "Quartz CGWindowListCopyWindowInfo",
+    "macOS screencapture",
+    "sqlite3",
+    "Read",
+    "Execute"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-PLAT-001",
+      "title": "Platform view renders skill list",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Pressed the `Claude Code 2` sidebar button in the native Tauri window after startup scan.",
+          "expected": "The platform page should render one card per installed skill in the Claude Code directory.",
+          "observed": "The page rendered two skill cards: `Frontend Design` and `Local Reviewer`, matching the isolated Claude Code fixture and sidebar badge count."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-views/platform-views-ca3dac53/claude-view.png"
+        ],
+        "consoleErrors": "n/a for native-window validation",
+        "network": "n/a",
+        "log": "n/a"
+      },
+      "issues": ""
+    },
+    {
+      "id": "VAL-SCAN-004",
+      "title": "Scanner detects symlinks vs copies",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Inspected the rendered Claude Code cards after scan using the mixed symlink/copy fixture.",
+          "expected": "Symlinked skills should show `Central Skills · symlink` and copied skills should show `独立安装 · copy`.",
+          "observed": "The `Frontend Design` card showed `Central Skills · symlink`, while `Local Reviewer` showed `独立安装 · copy` in the same populated platform view."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-views/platform-views-ca3dac53/claude-view.png"
+        ],
+        "consoleErrors": "n/a for native-window validation",
+        "network": "n/a",
+        "log": "n/a"
+      },
+      "issues": ""
+    },
+    {
+      "id": "VAL-PLAT-002",
+      "title": "Skill card shows source indicator",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Reviewed the visible source badges on the Claude Code platform cards.",
+          "expected": "Each platform card should label the installation source correctly.",
+          "observed": "The symlinked central install rendered as `Central Skills · symlink`, and the copied standalone install rendered as `独立安装 · copy`."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-views/platform-views-ca3dac53/claude-view.png"
+        ],
+        "consoleErrors": "n/a for native-window validation",
+        "network": "n/a",
+        "log": "n/a"
+      },
+      "issues": ""
+    },
+    {
+      "id": "VAL-PLAT-004",
+      "title": "Search filters skills in platform view",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Focused the Claude Code search field and typed `local` via raw keycodes in the native app window.",
+          "expected": "The visible platform list should filter in real time to matching skills.",
+          "observed": "The filtered view reduced to only the `Local Reviewer` card while the search field contained `local`."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-views/platform-views-ca3dac53/claude-after-keycodes.png"
+        ],
+        "consoleErrors": "n/a for native-window validation",
+        "network": "n/a",
+        "log": "n/a"
+      },
+      "issues": ""
+    },
+    {
+      "id": "VAL-CENT-004",
+      "title": "Symlink install creates working link",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Opened `Install to...` for `Deploy Helper`, selected only Claude Code, and confirmed the default symlink method.",
+          "expected": "The dialog should complete successfully, create a relative symlink, and update the UI link status.",
+          "observed": "After confirming, the Claude Code sidebar badge increased from 2 to 3, the Deploy Helper row showed Claude Code as linked, the filesystem contained `.claude/skills/deploy-helper -> ../../.agents/skills/deploy-helper`, and SQLite recorded `link_type = symlink`."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-views/platform-views-ca3dac53/deploy-helper-single-dialog.png",
+          "platform-views/platform-views-ca3dac53/deploy-helper-after-install.png"
+        ],
+        "consoleErrors": "The install completed without surfacing the previous `missing required key skillId` command error.",
+        "network": "n/a",
+        "log": "n/a"
+      },
+      "issues": ""
+    },
+    {
+      "id": "VAL-CENT-005",
+      "title": "Batch install to multiple platforms",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Opened `Install to...` for `API Auditor`, selected Cursor and Factory Droid, and confirmed the batch install.",
+          "expected": "The app should install the skill to both selected platforms in one operation and refresh their badges/link states.",
+          "observed": "After confirming, Cursor and Factory Droid sidebar badges each increased by one, the API Auditor row showed both platforms as linked, and SQLite recorded symlink installations for both agents."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-views/platform-views-ca3dac53/api-auditor-batch-dialog.png",
+          "platform-views/platform-views-ca3dac53/api-auditor-after-batch-install.png"
+        ],
+        "consoleErrors": "The batch install completed without the prior `missing required key skillId` command error.",
+        "network": "n/a",
+        "log": "n/a"
+      },
+      "issues": ""
+    },
+    {
+      "id": "VAL-SCAN-006",
+      "title": "Manual rescan updates data",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Added `qa-helper` to the isolated central skills directory after startup and pressed the refresh button in Central Skills.",
+          "expected": "The central list and sidebar counts should update without restarting the app.",
+          "observed": "The Central Skills badge increased from 3 to 4, the `QA Helper` card appeared immediately, Codex CLI increased to 4 because the copied fixture was also present, and SQLite persisted `QA Helper` with `is_central = 1`."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-views/platform-views-ca3dac53/central-after-refresh-qa-helper.png"
+        ],
+        "consoleErrors": "The refresh completed without visible errors in the native window.",
+        "network": "n/a",
+        "log": "n/a"
+      },
+      "issues": ""
+    },
+    {
+      "id": "VAL-PLAT-005",
+      "title": "Click skill navigates to detail",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Re-ran the populated platform-view checks after the list rendering bug was fixed and reviewed milestone ownership for the detail destination.",
+          "expected": "A platform skill card should navigate into a fully implemented detail experience when clicked.",
+          "observed": "Platform cards now render, but the destination detail experience belongs to the pending `skill-detail-page` milestone, so this navigation assertion remains deferred for a later validation round."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-views/platform-views-ca3dac53/claude-view.png"
+        ],
+        "consoleErrors": "n/a",
+        "network": "n/a",
+        "log": "n/a"
+      },
+      "issues": "Blocked by pending `skill-detail-page` milestone."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Nested `user-testing-flow-validator` delegation was not permitted in this worker session.",
+      "resolution": "Completed the assigned round manually using native macOS accessibility automation and direct evidence capture."
+    },
+    {
+      "description": "Standard text insertion methods did not update the native search field reliably.",
+      "resolution": "Used raw CGEvent keycodes to type into the focused search box and captured the filtered result via Quartz screenshot evidence."
+    }
+  ],
+  "blockers": [
+    {
+      "id": "pending-skill-detail-milestone",
+      "description": "VAL-PLAT-005 remains deferred until the `skill-detail-page` milestone provides the detail experience that platform-card navigation targets."
+    }
+  ],
+  "summary": "Validated the remaining platform-views rerun assertions against the native Tauri app on port 24200. Platform cards now render with correct source indicators, search works, single and batch installs succeed, and refresh rescans new central skills. Only VAL-PLAT-005 remains blocked by the pending skill-detail-page milestone."
+}

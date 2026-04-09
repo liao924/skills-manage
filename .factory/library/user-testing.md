@@ -34,3 +34,10 @@
 - Stay within that fixture home and the assigned evidence/output directories; do not inspect or modify real `~/.*skills/` directories.
 - The foundation sidebar assertions share one startup scan and one backing SQLite DB under the isolated HOME, so run them in a single validator rather than concurrent validators.
 - If the browser preview does not reflect Tauri state, use the native `skills-manage` window as the real user surface and capture the window with a Quartz-based screenshot for evidence.
+
+## Native macOS Tauri Automation
+
+- When the browser preview lacks Tauri globals and `System Events` AppleScript becomes unreliable, a dependable fallback is Python + PyObjC.
+- Install user-local helpers with `python3 -m pip install --user pyobjc-framework-Quartz pyobjc-framework-ApplicationServices pillow`.
+- Use `ApplicationServices.AXUIElementCopyAttributeValue` to locate sidebar `AXButton` elements such as `Claude Code 2` or `Central Skills 3`, then trigger navigation with `AXUIElementPerformAction(..., "AXPress")`.
+- Capture the real Tauri window with Quartz `CGWindowListCreateImage(...)` so evidence reflects the native app instead of the browser preview.

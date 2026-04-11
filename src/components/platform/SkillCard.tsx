@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Link2, FolderOpen, ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   Card,
   CardContent,
@@ -10,6 +11,7 @@ import { cn } from "@/lib/utils";
 // ─── Source Indicator ─────────────────────────────────────────────────────────
 
 function SourceIndicator({ skill }: { skill: ScannedSkill }) {
+  const { t } = useTranslation();
   const isSymlink = skill.link_type === "symlink";
 
   return (
@@ -25,7 +27,7 @@ function SourceIndicator({ skill }: { skill: ScannedSkill }) {
         <FolderOpen className="size-3 shrink-0" />
       )}
       <span>
-        {isSymlink ? "Central Skills · symlink" : "独立安装 · copy"}
+        {isSymlink ? t("platform.sourceSymlink") : t("platform.sourceCopy")}
       </span>
     </div>
   );
@@ -40,13 +42,14 @@ interface SkillCardProps {
 
 export function SkillCard({ skill, className }: SkillCardProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   return (
     <button
       role="button"
       onClick={() => navigate(`/skill/${skill.id}`)}
       className="w-full h-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl"
-      aria-label={`View skill ${skill.name}`}
+      aria-label={t("platform.searchSkillLabel", { name: skill.name })}
     >
       <Card
         size="sm"

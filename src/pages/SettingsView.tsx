@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Pencil, Loader2, FolderOpen, Cpu, Info, Database } from "lucide-react";
+import { Plus, Trash2, Pencil, Loader2, FolderOpen, Cpu, Info, Database, Globe } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +34,8 @@ interface ScanDirectoryRowProps {
 }
 
 function ScanDirectoryRow({ dir, onRemove, onToggle, isRemoving }: ScanDirectoryRowProps) {
+  const { t } = useTranslation();
+  const action = dir.is_active ? t("settings.enabled") : t("settings.disabled");
   return (
     <div className="flex items-center gap-3 py-2.5 px-4 border-b border-border/50 last:border-0">
       <FolderOpen className="size-4 text-muted-foreground shrink-0" />
@@ -41,7 +45,7 @@ function ScanDirectoryRow({ dir, onRemove, onToggle, isRemoving }: ScanDirectory
           <div className="text-xs text-muted-foreground mt-0.5">{dir.label}</div>
         )}
         {dir.is_builtin && (
-          <div className="text-xs text-muted-foreground mt-0.5">内置目录</div>
+          <div className="text-xs text-muted-foreground mt-0.5">{t("settings.builtinDir")}</div>
         )}
       </div>
       <div className="flex items-center gap-2 shrink-0">
@@ -49,12 +53,12 @@ function ScanDirectoryRow({ dir, onRemove, onToggle, isRemoving }: ScanDirectory
         {!dir.is_builtin && (
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground">
-              {dir.is_active ? "启用" : "禁用"}
+              {action}
             </span>
             <Switch
               checked={dir.is_active}
               onCheckedChange={onToggle}
-              aria-label={`${dir.is_active ? "禁用" : "启用"} ${dir.path}`}
+              aria-label={t("settings.enableDirLabel", { action, path: dir.path })}
             />
           </div>
         )}
@@ -63,7 +67,7 @@ function ScanDirectoryRow({ dir, onRemove, onToggle, isRemoving }: ScanDirectory
           <button
             onClick={onRemove}
             disabled={isRemoving}
-            aria-label={`删除目录 ${dir.path}`}
+            aria-label={t("settings.removeDirLabel", { path: dir.path })}
             className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isRemoving ? (
@@ -88,6 +92,7 @@ interface CustomPlatformRowProps {
 }
 
 function CustomPlatformRow({ agent, onEdit, onRemove, isRemoving }: CustomPlatformRowProps) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center gap-3 py-2.5 px-4 border-b border-border/50 last:border-0">
       <Cpu className="size-4 text-muted-foreground shrink-0" />
@@ -102,15 +107,15 @@ function CustomPlatformRow({ agent, onEdit, onRemove, isRemoving }: CustomPlatfo
           variant="outline"
           size="sm"
           onClick={onEdit}
-          aria-label={`编辑平台 ${agent.display_name}`}
+          aria-label={t("settings.editPlatformLabel", { name: agent.display_name })}
         >
           <Pencil className="size-3.5" />
-          <span>编辑</span>
+          <span>{t("common.edit")}</span>
         </Button>
         <button
           onClick={onRemove}
           disabled={isRemoving}
-          aria-label={`删除平台 ${agent.display_name}`}
+          aria-label={t("settings.removePlatformLabel", { name: agent.display_name })}
           className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isRemoving ? (
@@ -127,6 +132,8 @@ function CustomPlatformRow({ agent, onEdit, onRemove, isRemoving }: CustomPlatfo
 // ─── SettingsView ─────────────────────────────────────────────────────────────
 
 export function SettingsView() {
+  const { t } = useTranslation();
+
   // ── Store State ────────────────────────────────────────────────────────────
 
   const scanDirectories = useSettingsStore((s) => s.scanDirectories);
@@ -169,10 +176,10 @@ export function SettingsView() {
       await addScanDirectory(path);
       // Trigger rescan after adding a directory.
       await rescan();
-      toast.success("目录已添加");
+      toast.success(t("addDir.add") + " ✓");
     } catch (err) {
       setScanDirError(String(err));
-      toast.error(`添加目录失败: ${String(err)}`);
+      toast.error(String(err));
       throw err; // Re-throw so the dialog knows it failed
     }
   }
@@ -184,10 +191,10 @@ export function SettingsView() {
       await removeScanDirectory(path);
       // Trigger rescan after removing a directory.
       await rescan();
-      toast.success("目录已删除");
+      toast.success(t("common.delete") + " ✓");
     } catch (err) {
       setScanDirError(String(err));
-      toast.error(`删除目录失败: ${String(err)}`);
+      toast.error(String(err));
     } finally {
       setRemovingDir(null);
     }
@@ -203,7 +210,7 @@ export function SettingsView() {
       await toggleScanDirectory(path, active);
     } catch (err) {
       setScanDirError(String(err));
-      toast.error(`切换目录状态失败: ${String(err)}`);
+      toast.error(String(err));
     }
   }
 
@@ -230,10 +237,10 @@ export function SettingsView() {
       });
       // Refresh agents + rescan to show new platform in sidebar.
       await rescan();
-      toast.success("平台已添加");
+      toast.success(t("platformDialog.add") + " ✓");
     } catch (err) {
       setPlatformError(String(err));
-      toast.error(`添加平台失败: ${String(err)}`);
+      toast.error(String(err));
       throw err;
     }
   }
@@ -248,10 +255,10 @@ export function SettingsView() {
       });
       // Refresh agents + rescan.
       await rescan();
-      toast.success("平台已更新");
+      toast.success(t("platformDialog.save") + " ✓");
     } catch (err) {
       setPlatformError(String(err));
-      toast.error(`更新平台失败: ${String(err)}`);
+      toast.error(String(err));
       throw err;
     }
   }
@@ -263,10 +270,10 @@ export function SettingsView() {
       await removeCustomAgent(agentId);
       // Refresh agents.
       await rescan();
-      toast.success("平台已删除");
+      toast.success(t("common.delete") + " ✓");
     } catch (err) {
       setPlatformError(String(err));
-      toast.error(`删除平台失败: ${String(err)}`);
+      toast.error(String(err));
     } finally {
       setRemovingAgent(null);
     }
@@ -278,7 +285,7 @@ export function SettingsView() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="border-b border-border px-6 py-4">
-        <h1 className="text-xl font-semibold">设置</h1>
+        <h1 className="text-xl font-semibold">{t("settings.title")}</h1>
       </div>
 
       {/* Content */}
@@ -289,19 +296,19 @@ export function SettingsView() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>扫描目录</CardTitle>
+                <CardTitle>{t("settings.scanDirs")}</CardTitle>
                 <CardDescription className="mt-1">
-                  管理 skills 扫描的目录列表。内置目录不可删除。
+                  {t("settings.scanDirsDesc")}
                 </CardDescription>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setIsAddDirOpen(true)}
-                aria-label="添加项目目录"
+                aria-label={t("settings.addDirAriaLabel")}
               >
                 <Plus className="size-3.5" />
-                <span>添加目录</span>
+                <span>{t("settings.addDirectory")}</span>
               </Button>
             </div>
           </CardHeader>
@@ -316,11 +323,11 @@ export function SettingsView() {
             {isLoadingScanDirs ? (
               <div className="flex items-center gap-2 py-6 text-muted-foreground text-sm justify-center">
                 <Loader2 className="size-4 animate-spin" />
-                <span>加载中...</span>
+                <span>{t("settings.loading")}</span>
               </div>
             ) : scanDirectories.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">
-                暂无扫描目录
+                {t("settings.noDirs")}
               </p>
             ) : (
               <div className="rounded-lg border border-border overflow-hidden">
@@ -343,19 +350,19 @@ export function SettingsView() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>自定义平台</CardTitle>
+                <CardTitle>{t("settings.customPlatforms")}</CardTitle>
                 <CardDescription className="mt-1">
-                  注册自定义 AI 平台，添加后可在侧边栏中查看和管理其 skills。
+                  {t("settings.customPlatformsDesc")}
                 </CardDescription>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleOpenAddPlatform}
-                aria-label="添加自定义平台"
+                aria-label={t("settings.addPlatformAriaLabel")}
               >
                 <Plus className="size-3.5" />
-                <span>添加平台</span>
+                <span>{t("settings.addPlatform")}</span>
               </Button>
             </div>
           </CardHeader>
@@ -369,7 +376,7 @@ export function SettingsView() {
 
             {customAgents.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">
-                暂无自定义平台。点击「添加平台」注册新平台。
+                {t("settings.noPlatforms")}
               </p>
             ) : (
               <div className="rounded-lg border border-border overflow-hidden">
@@ -390,22 +397,47 @@ export function SettingsView() {
         {/* ── Section 3: About ────────────────────────────────────────────── */}
         <Card>
           <CardHeader>
-            <CardTitle>关于</CardTitle>
+            <CardTitle>{t("settings.about")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 <Info className="size-4 text-muted-foreground shrink-0" />
                 <div>
-                  <div className="text-xs text-muted-foreground">应用版本</div>
+                  <div className="text-xs text-muted-foreground">{t("settings.appVersion")}</div>
                   <div className="text-sm font-medium">skills-manage v{APP_VERSION}</div>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <Database className="size-4 text-muted-foreground shrink-0" />
                 <div>
-                  <div className="text-xs text-muted-foreground">数据库路径</div>
+                  <div className="text-xs text-muted-foreground">{t("settings.dbPath")}</div>
                   <div className="text-sm font-medium font-mono">{DB_PATH}</div>
+                </div>
+              </div>
+              {/* ── Language Switcher ──────────────────────────────────────── */}
+              <div className="flex items-center gap-3">
+                <Globe className="size-4 text-muted-foreground shrink-0" />
+                <div className="flex-1">
+                  <div className="text-xs text-muted-foreground mb-1.5">{t("settings.language")}</div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={i18n.language === "zh" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => i18n.changeLanguage("zh")}
+                      aria-pressed={i18n.language === "zh"}
+                    >
+                      {t("settings.chinese")}
+                    </Button>
+                    <Button
+                      variant={i18n.language === "en" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => i18n.changeLanguage("en")}
+                      aria-pressed={i18n.language === "en"}
+                    >
+                      {t("settings.english")}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>

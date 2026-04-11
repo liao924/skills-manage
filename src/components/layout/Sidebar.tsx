@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
 import { usePlatformStore } from "@/stores/platformStore";
 import { useCollectionStore } from "@/stores/collectionStore";
@@ -142,6 +143,7 @@ function SectionHeader({
 export function Sidebar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { t } = useTranslation();
   const { agents, skillsByAgent, isLoading } = usePlatformStore();
 
   const collections = useCollectionStore((s) => s.collections);
@@ -217,14 +219,14 @@ export function Sidebar() {
         )}
       >
         {!collapsed && (
-          <h1 className="text-sm font-bold tracking-tight text-sidebar-primary">skills-manage</h1>
+          <h1 className="text-sm font-bold tracking-tight text-sidebar-primary">{t("app.name")}</h1>
         )}
         {/* Collapse toggle */}
         <button
           onClick={() => setCollapsed((c) => !c)}
           className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={collapsed ? t("sidebar.expandSidebar") : t("sidebar.collapseSidebar")}
+          title={collapsed ? t("sidebar.expandSidebar") : t("sidebar.collapseSidebar")}
         >
           {collapsed ? (
             <ChevronRight className="size-4" />
@@ -237,20 +239,20 @@ export function Sidebar() {
       {/* Scrollable sections */}
       <div className="flex-1 overflow-y-auto py-3 space-y-4">
         {/* ── By Tool ─────────────────────────────────────────── */}
-        <section aria-label="By Tool" className="pb-2 border-b border-sidebar-border/70">
-          <SectionHeader label="By Tool" collapsed={collapsed} />
+        <section aria-label={t("sidebar.byTool")} className="pb-2 border-b border-sidebar-border/70">
+          <SectionHeader label={t("sidebar.byTool")} collapsed={collapsed} />
           {isLoading ? (
             <div className={cn(
               "flex items-center py-2 text-muted-foreground text-sm",
               collapsed ? "justify-center px-1" : "gap-2 px-3"
             )}>
               <Loader2 className="size-3.5 animate-spin" />
-              {!collapsed && <span>Scanning...</span>}
+              {!collapsed && <span>{t("sidebar.scanning")}</span>}
             </div>
           ) : platformAgents.length === 0 ? (
             !collapsed && (
               <p className="px-3 py-1.5 text-xs text-muted-foreground">
-                No platforms detected
+                {t("sidebar.noPlatforms")}
               </p>
             )
           ) : (
@@ -271,11 +273,11 @@ export function Sidebar() {
         </section>
 
         {/* ── Central Skills ───────────────────────────────────── */}
-        <section aria-label="Central Skills" className="pb-2 border-b border-sidebar-border/70">
+        <section aria-label={t("sidebar.centralSkills")} className="pb-2 border-b border-sidebar-border/70">
           {collapsed ? (
             <div className="px-1">
               <NavItem
-                label="Central Skills"
+                label={t("sidebar.centralSkills")}
                 isActive={pathname === "/central"}
                 onClick={() => navigate("/central")}
                 icon={<PackageOpen className="size-4" />}
@@ -284,7 +286,7 @@ export function Sidebar() {
             </div>
           ) : (
             <NavItem
-              label="Central Skills"
+              label={t("sidebar.centralSkills")}
               badge={isLoading ? undefined : centralCount}
               isActive={pathname === "/central"}
               onClick={() => navigate("/central")}
@@ -294,9 +296,9 @@ export function Sidebar() {
         </section>
 
         {/* ── Collections ──────────────────────────────────────── */}
-        <section aria-label="Collections">
+        <section aria-label={t("sidebar.collections")}>
           <SectionHeader
-            label="Collections"
+            label={t("sidebar.collections")}
             collapsed={collapsed}
             action={
               !collapsed ? (
@@ -305,8 +307,8 @@ export function Sidebar() {
                   <button
                     className="p-0.5 rounded hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-accent-foreground transition-colors"
                     onClick={handleImportClick}
-                    aria-label="Import Collection from JSON"
-                    title="Import Collection"
+                    aria-label={t("sidebar.importCollection")}
+                    title={t("sidebar.importCollection")}
                   >
                     <Upload className="size-3.5" />
                   </button>
@@ -314,8 +316,8 @@ export function Sidebar() {
                   <button
                     className="p-0.5 rounded hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-accent-foreground transition-colors"
                     onClick={() => setIsEditorOpen(true)}
-                    aria-label="新建 Collection"
-                    title="新建 Collection"
+                    aria-label={t("sidebar.newCollectionLabel")}
+                    title={t("sidebar.newCollectionLabel")}
                   >
                     <Plus className="size-3.5" />
                   </button>
@@ -328,7 +330,7 @@ export function Sidebar() {
             /* Collapsed: show a single collections icon */
             <div className="px-1">
               <NavItem
-                label="Collections"
+                label={t("sidebar.collections")}
                 isActive={isCollectionActive}
                 onClick={() => {
                   if (collections.length > 0) {
@@ -350,7 +352,7 @@ export function Sidebar() {
                     className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                     onClick={() => setIsEditorOpen(true)}
                   >
-                    + 新建
+                    {t("sidebar.newCollection")}
                   </button>
                 </div>
               ) : (
@@ -368,7 +370,7 @@ export function Sidebar() {
                       className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                       onClick={() => setIsEditorOpen(true)}
                     >
-                      + 新建
+                      {t("sidebar.newCollection")}
                     </button>
                   </div>
                 </>
@@ -400,11 +402,11 @@ export function Sidebar() {
                 "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
               collapsed ? "justify-center py-2" : "gap-2 px-3 py-1.5"
             )}
-            title={collapsed ? "设置" : undefined}
-            aria-label="设置"
+            title={collapsed ? t("sidebar.settings") : undefined}
+            aria-label={t("sidebar.settings")}
           >
             <Settings className="size-4" />
-            {!collapsed && <span>设置</span>}
+            {!collapsed && <span>{t("sidebar.settings")}</span>}
           </button>
           {pathname === "/settings" && (
             <span

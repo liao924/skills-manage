@@ -1,4 +1,45 @@
 import "@testing-library/jest-dom";
+import zh from "../i18n/locales/zh.json";
+
+// ─── react-i18next mock ───────────────────────────────────────────────────────
+// Resolves translation keys against zh.json so existing assertions on Chinese
+// strings continue to pass without requiring a running i18n instance.
+
+type TranslationObj = { [key: string]: TranslationObj | string };
+
+function resolveKey(obj: TranslationObj, key: string, options?: Record<string, unknown>): string {
+  const parts = key.split(".");
+  let result: TranslationObj | string = obj;
+  for (const part of parts) {
+    if (result && typeof result === "object") {
+      result = (result as TranslationObj)[part];
+    } else {
+      return key;
+    }
+  }
+  if (typeof result !== "string") return key;
+  // Handle simple {{var}} interpolation
+  if (options) {
+    return result.replace(/\{\{(\w+)\}\}/g, (_match, varName) => {
+      const val = options[varName];
+      return val !== undefined ? String(val) : `{{${varName}}}`;
+    });
+  }
+  return result;
+}
+
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    t: (key: string, options?: Record<string, unknown>) =>
+      resolveKey(zh as unknown as TranslationObj, key, options),
+    i18n: {
+      changeLanguage: vi.fn(),
+      language: "zh",
+    },
+  }),
+  initReactI18next: { type: "3rdParty", init: vi.fn() },
+  Trans: ({ children }: { children: React.ReactNode }) => children,
+}));
 
 // Polyfill PointerEvent for base-ui components in jsdom
 // base-ui's Checkbox/Radio use PointerEvent internally which jsdom doesn't support

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import {
   Dialog,
@@ -35,6 +36,7 @@ export function PlatformDialog({
   onAdd,
   onEdit,
 }: PlatformDialogProps) {
+  const { t } = useTranslation();
   const isEditMode = platform !== null;
 
   const [displayName, setDisplayName] = useState("");
@@ -61,13 +63,13 @@ export function PlatformDialog({
 
     let hasError = false;
     if (!trimmedName) {
-      setNameError("平台名称不能为空");
+      setNameError(t("platformDialog.nameRequired"));
       hasError = true;
     } else {
       setNameError(null);
     }
     if (!trimmedDir) {
-      setDirError("技能目录路径不能为空");
+      setDirError(t("platformDialog.dirRequired"));
       hasError = true;
     } else {
       setDirError(null);
@@ -97,7 +99,7 @@ export function PlatformDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "编辑自定义平台" : "添加自定义平台"}
+            {isEditMode ? t("platformDialog.editTitle") : t("platformDialog.addTitle")}
           </DialogTitle>
           <DialogClose />
         </DialogHeader>
@@ -105,18 +107,18 @@ export function PlatformDialog({
         <DialogBody className="space-y-4">
           <DialogDescription>
             {isEditMode
-              ? "修改自定义平台的名称和技能目录。"
-              : "注册一个新的自定义平台，添加后将自动重新扫描。"}
+              ? t("platformDialog.editDesc")
+              : t("platformDialog.addDesc")}
           </DialogDescription>
 
           {/* Display name field */}
           <div className="space-y-1.5">
             <label htmlFor="platform-name" className="text-sm font-medium">
-              平台名称 <span className="text-destructive">*</span>
+              {t("platformDialog.nameLabel")} <span className="text-destructive">*</span>
             </label>
             <Input
               id="platform-name"
-              placeholder="例如: QClaw"
+              placeholder={t("platformDialog.namePlaceholder")}
               value={displayName}
               onChange={(e) => {
                 setDisplayName(e.target.value);
@@ -135,11 +137,11 @@ export function PlatformDialog({
           {/* Global skills dir field */}
           <div className="space-y-1.5">
             <label htmlFor="platform-dir" className="text-sm font-medium">
-              技能目录路径 <span className="text-destructive">*</span>
+              {t("platformDialog.dirLabel")} <span className="text-destructive">*</span>
             </label>
             <Input
               id="platform-dir"
-              placeholder="例如: ~/.qclaw/skills/"
+              placeholder={t("platformDialog.dirPlaceholder")}
               value={globalSkillsDir}
               onChange={(e) => {
                 setGlobalSkillsDir(e.target.value);
@@ -168,18 +170,18 @@ export function PlatformDialog({
             onClick={() => onOpenChange(false)}
             disabled={isSubmitting}
           >
-            取消
+            {t("platformDialog.cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? (
               <>
                 <Loader2 className="size-3.5 animate-spin" />
-                {isEditMode ? "保存中..." : "添加中..."}
+                {isEditMode ? t("platformDialog.saving") : t("platformDialog.adding")}
               </>
             ) : isEditMode ? (
-              "保存"
+              t("platformDialog.save")
             ) : (
-              "添加"
+              t("platformDialog.add")
             )}
           </Button>
         </DialogFooter>

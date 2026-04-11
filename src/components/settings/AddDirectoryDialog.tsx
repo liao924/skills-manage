@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import {
   Dialog,
@@ -29,6 +30,7 @@ export function AddDirectoryDialog({
   onOpenChange,
   onAdd,
 }: AddDirectoryDialogProps) {
+  const { t } = useTranslation();
   const [path, setPath] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -46,7 +48,7 @@ export function AddDirectoryDialog({
   async function handleSubmit() {
     const trimmedPath = path.trim();
     if (!trimmedPath) {
-      setValidationError("目录路径不能为空");
+      setValidationError(t("addDir.pathRequired"));
       return;
     }
 
@@ -74,23 +76,23 @@ export function AddDirectoryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>添加项目目录</DialogTitle>
+          <DialogTitle>{t("addDir.title")}</DialogTitle>
           <DialogClose />
         </DialogHeader>
 
         <DialogBody className="space-y-4">
           <DialogDescription>
-            输入要扫描的自定义目录路径。添加后将自动重新扫描。
+            {t("addDir.desc")}
           </DialogDescription>
 
           {/* Path field */}
           <div className="space-y-1.5">
             <label htmlFor="dir-path" className="text-sm font-medium">
-              目录路径 <span className="text-destructive">*</span>
+              {t("addDir.pathLabel")} <span className="text-destructive">*</span>
             </label>
             <Input
               id="dir-path"
-              placeholder="例如: ~/projects/my-project"
+              placeholder={t("addDir.pathPlaceholder")}
               value={path}
               onChange={(e) => {
                 setPath(e.target.value);
@@ -121,16 +123,16 @@ export function AddDirectoryDialog({
             onClick={() => onOpenChange(false)}
             disabled={isSubmitting}
           >
-            取消
+            {t("addDir.cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? (
               <>
                 <Loader2 className="size-3.5 animate-spin" />
-                添加中...
+                {t("addDir.adding")}
               </>
             ) : (
-              "添加"
+              t("addDir.add")
             )}
           </Button>
         </DialogFooter>

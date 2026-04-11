@@ -170,12 +170,12 @@ describe("SkillDetail", () => {
 
   it("renders back button", () => {
     renderSkillDetail();
-    expect(screen.getByRole("button", { name: /Go back/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /返回/i })).toBeInTheDocument();
   });
 
   it("navigates back when back button clicked", () => {
     renderSkillDetail();
-    const backBtn = screen.getByRole("button", { name: /Go back/i });
+    const backBtn = screen.getByRole("button", { name: /返回/i });
     // Clicking should not throw; navigation is handled by useNavigate(-1)
     fireEvent.click(backBtn);
     // No assertion needed — just verifying no crash
@@ -199,7 +199,7 @@ describe("SkillDetail", () => {
 
   it("shows metadata section", () => {
     renderSkillDetail();
-    expect(screen.getByRole("region", { name: /Skill metadata/i })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: /技能基本信息/i })).toBeInTheDocument();
   });
 
   it("shows file path", () => {
@@ -224,7 +224,7 @@ describe("SkillDetail", () => {
   it("shows installation status section", () => {
     renderSkillDetail();
     expect(
-      screen.getByRole("region", { name: /Installation status/i })
+      screen.getByRole("region", { name: /安装状态/i })
     ).toBeInTheDocument();
   });
 
@@ -249,7 +249,7 @@ describe("SkillDetail", () => {
   it("shows Install button for uninstalled platforms", () => {
     renderSkillDetail();
     // Cursor is NOT installed
-    const installBtn = screen.getByRole("button", { name: /Install to Cursor/i });
+    const installBtn = screen.getByRole("button", { name: /安装到 Cursor/i });
     expect(installBtn).toBeInTheDocument();
   });
 
@@ -257,14 +257,14 @@ describe("SkillDetail", () => {
     renderSkillDetail();
     // Claude Code IS installed
     const uninstallBtn = screen.getByRole("button", {
-      name: /Uninstall from Claude Code/i,
+      name: /从 Claude Code 卸载/i,
     });
     expect(uninstallBtn).toBeInTheDocument();
   });
 
   it("calls installSkill when Install button is clicked", async () => {
     renderSkillDetail();
-    const installBtn = screen.getByRole("button", { name: /Install to Cursor/i });
+    const installBtn = screen.getByRole("button", { name: /安装到 Cursor/i });
     fireEvent.click(installBtn);
     await waitFor(() => {
       expect(mockInstallSkill).toHaveBeenCalledWith("frontend-design", "cursor");
@@ -274,7 +274,7 @@ describe("SkillDetail", () => {
   it("calls uninstallSkill when Uninstall button is clicked", async () => {
     renderSkillDetail();
     const uninstallBtn = screen.getByRole("button", {
-      name: /Uninstall from Claude Code/i,
+      name: /从 Claude Code 卸载/i,
     });
     fireEvent.click(uninstallBtn);
     await waitFor(() => {
@@ -290,7 +290,8 @@ describe("SkillDetail", () => {
   it("shows installation timestamp for an installed platform", () => {
     renderSkillDetail();
     // installed_at is "2026-04-09T12:00:00Z" — the formatted date should appear
-    const timestampEl = screen.getByText(/Installed/i);
+    // The text shows "安装于 Apr 9, 2026" (or similar locale-dependent format)
+    const timestampEl = screen.getByText(/安装于/i);
     expect(timestampEl).toBeInTheDocument();
   });
 
@@ -298,13 +299,13 @@ describe("SkillDetail", () => {
 
   it("shows collections section", () => {
     renderSkillDetail();
-    expect(screen.getByRole("region", { name: /Collections/i })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: /技能集/i })).toBeInTheDocument();
   });
 
   it("shows Add to collection button", () => {
     renderSkillDetail();
     expect(
-      screen.getByRole("button", { name: /Add to collection/i })
+      screen.getByRole("button", { name: /加入技能集/i })
     ).toBeInTheDocument();
   });
 
@@ -336,7 +337,7 @@ describe("SkillDetail", () => {
 
   it("shows SKILL.md preview section", () => {
     renderSkillDetail();
-    expect(screen.getByRole("region", { name: /SKILL.md preview/i })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: /SKILL\.md 预览/i })).toBeInTheDocument();
   });
 
   it("shows Markdown tab button", () => {
@@ -346,32 +347,32 @@ describe("SkillDetail", () => {
 
   it("shows Raw Source tab button", () => {
     renderSkillDetail();
-    expect(screen.getByRole("tab", { name: /Raw Source/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /原始源码/i })).toBeInTheDocument();
   });
 
   it("renders markdown content by default in Markdown tab", () => {
     renderSkillDetail();
     // The mock ReactMarkdown renders its children as-is
-    const markdownPane = screen.getByRole("tabpanel", { name: /Markdown preview/i });
+    const markdownPane = screen.getByRole("tabpanel", { name: /Markdown/i });
     expect(markdownPane).toBeInTheDocument();
     expect(screen.getByTestId("react-markdown")).toBeInTheDocument();
   });
 
   it("switches to raw source tab when Raw Source is clicked", async () => {
     renderSkillDetail();
-    const rawTab = screen.getByRole("tab", { name: /Raw Source/i });
+    const rawTab = screen.getByRole("tab", { name: /原始源码/i });
     fireEvent.click(rawTab);
     await waitFor(() => {
-      expect(screen.getByRole("tabpanel", { name: /Raw source/i })).toBeInTheDocument();
+      expect(screen.getByRole("tabpanel", { name: /原始源码/i })).toBeInTheDocument();
     });
   });
 
   it("shows raw content including frontmatter in raw source tab", async () => {
     renderSkillDetail();
-    const rawTab = screen.getByRole("tab", { name: /Raw Source/i });
+    const rawTab = screen.getByRole("tab", { name: /原始源码/i });
     fireEvent.click(rawTab);
     await waitFor(() => {
-      const rawPane = screen.getByRole("tabpanel", { name: /Raw source/i });
+      const rawPane = screen.getByRole("tabpanel", { name: /原始源码/i });
       expect(rawPane).toHaveTextContent("---");
       expect(rawPane).toHaveTextContent("name: frontend-design");
     });
@@ -397,7 +398,7 @@ describe("SkillDetail", () => {
         </Routes>
       </MemoryRouter>
     );
-    expect(screen.getByText(/Loading skill details/i)).toBeInTheDocument();
+    expect(screen.getByText(/正在加载技能详情/i)).toBeInTheDocument();
   });
 
   // ── Error state ───────────────────────────────────────────────────────────
@@ -457,7 +458,7 @@ describe("SkillDetail", () => {
       </MemoryRouter>
     );
     // The Install button for Cursor should be replaced by a spinner
-    expect(screen.queryByRole("button", { name: /Install to Cursor/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /安装到 Cursor/i })).toBeNull();
   });
 
   // ── CollectionPickerDialog integration ────────────────────────────────────
@@ -469,7 +470,7 @@ describe("SkillDetail", () => {
 
   it("opens CollectionPickerDialog when Add to collection is clicked", async () => {
     renderSkillDetail();
-    const addBtn = screen.getByRole("button", { name: /Add to collection/i });
+    const addBtn = screen.getByRole("button", { name: /加入技能集/i });
     fireEvent.click(addBtn);
     await waitFor(() => {
       expect(screen.getByTestId("collection-picker-dialog")).toBeInTheDocument();
@@ -478,7 +479,7 @@ describe("SkillDetail", () => {
 
   it("closes CollectionPickerDialog when cancel is clicked inside it", async () => {
     renderSkillDetail();
-    fireEvent.click(screen.getByRole("button", { name: /Add to collection/i }));
+    fireEvent.click(screen.getByRole("button", { name: /加入技能集/i }));
     await waitFor(() => {
       expect(screen.getByTestId("collection-picker-dialog")).toBeInTheDocument();
     });
@@ -492,7 +493,7 @@ describe("SkillDetail", () => {
     renderSkillDetail();
     mockLoadDetail.mockClear(); // clear the initial load call
 
-    fireEvent.click(screen.getByRole("button", { name: /Add to collection/i }));
+    fireEvent.click(screen.getByRole("button", { name: /加入技能集/i }));
     await waitFor(() => {
       expect(screen.getByTestId("collection-picker-dialog")).toBeInTheDocument();
     });

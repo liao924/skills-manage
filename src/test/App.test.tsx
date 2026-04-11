@@ -88,10 +88,10 @@ describe("App", () => {
         </MemoryRouter>
       );
     });
-    expect(screen.getByText("By Tool")).toBeInTheDocument();
-    // "Central Skills" appears in both the sidebar nav button and the main content header
-    expect(screen.getAllByText("Central Skills").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Collections")).toBeInTheDocument();
+    expect(screen.getByText("按工具")).toBeInTheDocument();
+    // "中央技能库" appears in both the sidebar nav button and the main content header
+    expect(screen.getAllByText("中央技能库").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("技能集")).toBeInTheDocument();
     expect(screen.getByText("设置")).toBeInTheDocument();
   });
 });

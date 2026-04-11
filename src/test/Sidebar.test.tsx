@@ -104,7 +104,7 @@ describe("Sidebar", () => {
 
   it("renders By Tool section header", () => {
     renderSidebar();
-    expect(screen.getByText("By Tool")).toBeInTheDocument();
+    expect(screen.getByText("按工具")).toBeInTheDocument();
   });
 
   it("renders platform agents in By Tool section", () => {
@@ -125,7 +125,7 @@ describe("Sidebar", () => {
 
   it("renders Central Skills nav item", () => {
     renderSidebar();
-    expect(screen.getByText("Central Skills")).toBeInTheDocument();
+    expect(screen.getByText("中央技能库")).toBeInTheDocument();
   });
 
   it("shows Central Skills count badge", () => {
@@ -135,7 +135,7 @@ describe("Sidebar", () => {
 
   it("renders Collections section", () => {
     renderSidebar();
-    expect(screen.getByText("Collections")).toBeInTheDocument();
+    expect(screen.getByText("技能集")).toBeInTheDocument();
   });
 
   it("renders '+新建' button in Collections section", () => {
@@ -160,7 +160,7 @@ describe("Sidebar", () => {
         <Sidebar />
       </MemoryRouter>
     );
-    expect(screen.getByText("Scanning...")).toBeInTheDocument();
+    expect(screen.getByText("扫描中...")).toBeInTheDocument();
   });
 
   it("hides platform list when loading", () => {
@@ -187,7 +187,7 @@ describe("Sidebar", () => {
 
   it("highlights Central Skills when on /central", () => {
     renderSidebar("/central");
-    const centralButton = screen.getByRole("button", { name: /Central Skills/ });
+    const centralButton = screen.getByRole("button", { name: /中央技能库/ });
     expect(centralButton.className).toContain("font-medium");
   });
 
@@ -219,7 +219,7 @@ describe("Sidebar", () => {
         <Sidebar />
       </MemoryRouter>
     );
-    expect(screen.getByText("No platforms detected")).toBeInTheDocument();
+    expect(screen.getByText("没有检测到平台")).toBeInTheDocument();
   });
 
   // ── Navigation ────────────────────────────────────────────────────────────
@@ -234,7 +234,7 @@ describe("Sidebar", () => {
 
   it("Central Skills button is clickable", () => {
     renderSidebar();
-    const centralButton = screen.getByRole("button", { name: /Central Skills/ });
+    const centralButton = screen.getByRole("button", { name: /中央技能库/ });
     expect(centralButton).not.toBeDisabled();
     fireEvent.click(centralButton);
   });
@@ -277,31 +277,31 @@ describe("Sidebar", () => {
 
   it("renders import button in Collections section", () => {
     renderSidebar();
-    expect(screen.getByRole("button", { name: /Import Collection/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /导入技能集/i })).toBeInTheDocument();
   });
 
   // ── Collapse Toggle ───────────────────────────────────────────────────────
 
   it("renders a collapse toggle button", () => {
     renderSidebar();
-    expect(screen.getByRole("button", { name: /Collapse sidebar/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /折叠侧边栏/i })).toBeInTheDocument();
   });
 
   it("collapses sidebar when toggle button is clicked", () => {
     renderSidebar();
-    const toggleBtn = screen.getByRole("button", { name: /Collapse sidebar/i });
+    const toggleBtn = screen.getByRole("button", { name: /折叠侧边栏/i });
     fireEvent.click(toggleBtn);
     // After collapse, the expand button should appear
-    expect(screen.getByRole("button", { name: /Expand sidebar/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /展开侧边栏/i })).toBeInTheDocument();
   });
 
   it("expands sidebar when expand button is clicked after collapse", () => {
     renderSidebar();
     // Collapse
-    fireEvent.click(screen.getByRole("button", { name: /Collapse sidebar/i }));
+    fireEvent.click(screen.getByRole("button", { name: /折叠侧边栏/i }));
     // Expand again
-    fireEvent.click(screen.getByRole("button", { name: /Expand sidebar/i }));
+    fireEvent.click(screen.getByRole("button", { name: /展开侧边栏/i }));
     // Should show collapse button again
-    expect(screen.getByRole("button", { name: /Collapse sidebar/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /折叠侧边栏/i })).toBeInTheDocument();
   });
 });

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Loader2, Plus } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import {
   Dialog,
@@ -38,6 +39,7 @@ export function CollectionPickerDialog({
   currentCollectionIds,
   onAdded,
 }: CollectionPickerDialogProps) {
+  const { t } = useTranslation();
   const collections = useCollectionStore((s) => s.collections);
   const isLoading = useCollectionStore((s) => s.isLoading);
   const loadCollections = useCollectionStore((s) => s.loadCollections);
@@ -90,13 +92,13 @@ export function CollectionPickerDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>添加到 Collection</DialogTitle>
+            <DialogTitle>{t("collectionPicker.title")}</DialogTitle>
             <DialogClose />
           </DialogHeader>
 
           <DialogBody className="space-y-3">
             <DialogDescription>
-              选择要将此 Skill 添加到的 Collection。
+              {t("collectionPicker.desc")}
             </DialogDescription>
 
             {/* Collections list */}
@@ -108,11 +110,11 @@ export function CollectionPickerDialog({
               {isLoading ? (
                 <div className="flex items-center justify-center py-6 gap-2 text-muted-foreground text-sm">
                   <Loader2 className="size-4 animate-spin" />
-                  Loading collections...
+                  {t("collectionPicker.loading")}
                 </div>
               ) : collections.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-6">
-                  No collections yet. Create one below.
+                  {t("collectionPicker.noCollections")}
                 </p>
               ) : (
                 collections.map((collection) => {
@@ -153,7 +155,7 @@ export function CollectionPickerDialog({
                         )}
                         {isAlreadyMember && (
                           <div className="text-xs text-muted-foreground mt-0.5">
-                            Already a member
+                            {t("collectionPicker.alreadyMember")}
                           </div>
                         )}
                       </div>
@@ -170,10 +172,10 @@ export function CollectionPickerDialog({
               className="w-full gap-1.5 text-muted-foreground hover:text-foreground"
               onClick={() => setIsCreateOpen(true)}
               disabled={isAdding}
-              aria-label="Create new collection"
+              aria-label={t("collectionPicker.createNew")}
             >
               <Plus className="size-3.5" />
-              Create new collection
+              {t("collectionPicker.createNew")}
             </Button>
 
             {error && (
@@ -189,7 +191,7 @@ export function CollectionPickerDialog({
               onClick={() => onOpenChange(false)}
               disabled={isAdding}
             >
-              取消
+              {t("collectionPicker.cancel")}
             </Button>
             <Button
               onClick={handleConfirm}
@@ -198,10 +200,12 @@ export function CollectionPickerDialog({
               {isAdding ? (
                 <>
                   <Loader2 className="size-3.5 animate-spin" />
-                  添加中...
+                  {t("collectionPicker.adding")}
                 </>
+              ) : selectedIds.size > 0 ? (
+                t("collectionPicker.addCount", { count: selectedIds.size })
               ) : (
-                `添加${selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}`
+                t("collectionPicker.add")
               )}
             </Button>
           </DialogFooter>

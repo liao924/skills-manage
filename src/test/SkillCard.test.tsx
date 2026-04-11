@@ -79,19 +79,19 @@ describe("SkillCard", () => {
 
   // ── Source Indicators ─────────────────────────────────────────────────────
 
-  it("shows 'Central Skills · symlink' for symlinked skills", () => {
+  it("shows symlink source indicator for symlinked skills", () => {
     renderSkillCard(symlinkSkill);
-    expect(screen.getByText("Central Skills · symlink")).toBeInTheDocument();
+    expect(screen.getByText("中央技能库 · 符号链接")).toBeInTheDocument();
   });
 
-  it("shows '独立安装 · copy' for copied skills", () => {
+  it("shows copy source indicator for copied skills", () => {
     renderSkillCard(copySkill);
-    expect(screen.getByText("独立安装 · copy")).toBeInTheDocument();
+    expect(screen.getByText("独立安装 · 复制安装")).toBeInTheDocument();
   });
 
-  it("shows '独立安装 · copy' for non-central skills", () => {
+  it("shows copy source indicator for non-central skills", () => {
     renderSkillCard(copySkill);
-    const indicator = screen.getByText("独立安装 · copy");
+    const indicator = screen.getByText("独立安装 · 复制安装");
     expect(indicator).toBeInTheDocument();
   });
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import {
   ArrowLeft,
@@ -60,6 +61,7 @@ function PlatformInstallRow({
   onInstall,
   onUninstall,
 }: PlatformInstallRowProps) {
+  const { t } = useTranslation();
   const isInstalled = !!installation;
   const isLoading = installingAgentId === agent.id;
 
@@ -91,7 +93,7 @@ function PlatformInstallRow({
         )}
         {isInstalled && installation?.installed_at && (
           <div className="text-xs text-muted-foreground mt-0.5">
-            Installed{" "}
+            {t("detail.installedOn")}{" "}
             {new Date(installation.installed_at).toLocaleDateString(undefined, {
               year: "numeric",
               month: "short",
@@ -112,22 +114,22 @@ function PlatformInstallRow({
           variant="ghost"
           size="sm"
           onClick={() => onUninstall(agent.id)}
-          aria-label={`Uninstall from ${agent.display_name}`}
+          aria-label={t("detail.uninstallFrom", { name: agent.display_name })}
           className="text-muted-foreground hover:text-destructive shrink-0"
         >
           <Trash2 className="size-3.5" />
-          <span className="sr-only">Uninstall</span>
+          <span className="sr-only">{t("detail.uninstallFrom", { name: agent.display_name })}</span>
         </Button>
       ) : (
         <Button
           variant="default"
           size="sm"
           onClick={() => onInstall(agent.id)}
-          aria-label={`Install to ${agent.display_name}`}
+          aria-label={t("detail.installTo", { name: agent.display_name })}
           className="shrink-0 gap-1.5"
         >
           <Download className="size-3.5" />
-          <span>Install</span>
+          <span>{t("common.install")}</span>
         </Button>
       )}
     </div>
@@ -144,6 +146,7 @@ interface TabToggleProps {
 }
 
 function TabToggle({ activeTab, onChange }: TabToggleProps) {
+  const { t } = useTranslation();
   return (
     <div className="flex border border-border rounded-lg p-0.5 gap-0.5 bg-muted/40">
       <button
@@ -158,7 +161,7 @@ function TabToggle({ activeTab, onChange }: TabToggleProps) {
         )}
       >
         <FileText className="size-3.5" />
-        Markdown
+        {t("detail.markdown")}
       </button>
       <button
         role="tab"
@@ -172,7 +175,7 @@ function TabToggle({ activeTab, onChange }: TabToggleProps) {
         )}
       >
         <Code className="size-3.5" />
-        Raw Source
+        {t("detail.rawSource")}
       </button>
     </div>
   );
@@ -183,6 +186,7 @@ function TabToggle({ activeTab, onChange }: TabToggleProps) {
 export function SkillDetail() {
   const { skillId } = useParams<{ skillId: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   // Store data
   const detail = useSkillDetailStore((s) => s.detail);
@@ -263,7 +267,7 @@ export function SkillDetail() {
         <button
           onClick={() => navigate(-1)}
           className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-          aria-label="Go back"
+          aria-label={t("detail.goBack")}
         >
           <ArrowLeft className="size-4" />
         </button>
@@ -285,7 +289,7 @@ export function SkillDetail() {
         {isLoading && (
           <div className="flex items-center justify-center h-full gap-2 text-muted-foreground">
             <Loader2 className="size-5 animate-spin" />
-            <span className="text-sm">Loading skill details...</span>
+            <span className="text-sm">{t("detail.loading")}</span>
           </div>
         )}
 
@@ -299,7 +303,7 @@ export function SkillDetail() {
                 size="sm"
                 onClick={() => skillId && loadDetail(skillId)}
               >
-                Retry
+                {t("detail.retry")}
               </Button>
             </div>
           </div>
@@ -309,30 +313,30 @@ export function SkillDetail() {
         {!isLoading && !error && detail && (
           <div className="p-6 space-y-8 max-w-3xl">
             {/* ── Metadata ──────────────────────────────────────────────── */}
-            <section aria-label="Skill metadata">
-              <SectionLabel>Metadata</SectionLabel>
+            <section aria-label={t("detail.metadataRegion")}>
+              <SectionLabel>{t("detail.metadata")}</SectionLabel>
               <div className="space-y-2">
-                <MetadataRow label="File path" value={detail.file_path} />
+                <MetadataRow label={t("detail.filePath")} value={detail.file_path} />
                 {detail.canonical_path && (
-                  <MetadataRow label="Canonical" value={detail.canonical_path} />
+                  <MetadataRow label={t("detail.canonical")} value={detail.canonical_path} />
                 )}
                 {detail.source && (
-                  <MetadataRow label="Source" value={detail.source} />
+                  <MetadataRow label={t("detail.source")} value={detail.source} />
                 )}
                 <MetadataRow
-                  label="Scanned at"
+                  label={t("detail.scannedAt")}
                   value={new Date(detail.scanned_at).toLocaleString()}
                 />
               </div>
             </section>
 
             {/* ── Installation Status ────────────────────────────────────── */}
-            <section aria-label="Installation status">
-              <SectionLabel>Installation Status</SectionLabel>
+            <section aria-label={t("detail.installStatusRegion")}>
+              <SectionLabel>{t("detail.installStatus")}</SectionLabel>
               <div className="rounded-xl ring-1 ring-foreground/10 bg-card overflow-hidden px-4 py-1">
                 {targetAgents.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-3">
-                    No platforms configured.
+                    {t("detail.noPlatforms")}
                   </p>
                 ) : (
                   targetAgents.map((agent: AgentWithStatus) => (
@@ -350,8 +354,8 @@ export function SkillDetail() {
             </section>
 
             {/* ── Collections ────────────────────────────────────────────── */}
-            <section aria-label="Collections">
-              <SectionLabel>Collections</SectionLabel>
+            <section aria-label={t("detail.collections")}>
+              <SectionLabel>{t("detail.collections")}</SectionLabel>
               <div className="flex flex-wrap gap-2 items-center">
                 {(detail.collections ?? []).map((collectionId) => (
                   <span
@@ -366,19 +370,19 @@ export function SkillDetail() {
                   variant="ghost"
                   size="sm"
                   className="gap-1.5 text-muted-foreground hover:text-foreground"
-                  aria-label="Add to collection"
+                  aria-label={t("detail.addToCollection")}
                   onClick={() => setIsCollectionPickerOpen(true)}
                 >
                   <Plus className="size-3.5" />
-                  Add to collection
+                  {t("detail.addToCollection")}
                 </Button>
               </div>
             </section>
 
             {/* ── SKILL.md Preview ───────────────────────────────────────── */}
-            <section aria-label="SKILL.md preview">
+            <section aria-label={t("detail.preview")}>
               <div className="flex items-center justify-between mb-3">
-                <SectionLabel>SKILL.md Preview</SectionLabel>
+                <SectionLabel>{t("detail.preview")}</SectionLabel>
                 <TabToggle activeTab={activeTab} onChange={setActiveTab} />
               </div>
 
@@ -387,13 +391,13 @@ export function SkillDetail() {
                   <div
                     className="markdown-body p-4 overflow-auto max-h-[60vh]"
                     role="tabpanel"
-                    aria-label="Markdown preview"
+                    aria-label={t("detail.markdown")}
                   >
                     {content ? (
                       <ReactMarkdown>{content}</ReactMarkdown>
                     ) : (
                       <p className="text-sm text-muted-foreground italic">
-                        No content available.
+                        {t("detail.noContent")}
                       </p>
                     )}
                   </div>
@@ -401,9 +405,9 @@ export function SkillDetail() {
                   <pre
                     className="p-4 text-xs font-mono overflow-auto max-h-[60vh] whitespace-pre-wrap break-words text-foreground/80"
                     role="tabpanel"
-                    aria-label="Raw source"
+                    aria-label={t("detail.rawSource")}
                   >
-                    {content ?? "No content available."}
+                    {content ?? t("detail.noContent")}
                   </pre>
                 )}
               </div>

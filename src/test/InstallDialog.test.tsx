@@ -94,7 +94,7 @@ describe("InstallDialog", () => {
 
   it("shows skill name in title", () => {
     renderDialog();
-    expect(screen.getByText("Install frontend-design")).toBeInTheDocument();
+    expect(screen.getByText("安装 frontend-design")).toBeInTheDocument();
   });
 
   it("shows non-central agent checkboxes", () => {
@@ -112,20 +112,20 @@ describe("InstallDialog", () => {
   it("shows 'already linked' badge for linked agents", () => {
     renderDialog();
     // Claude Code is in linked_agents
-    expect(screen.getByText("already linked")).toBeInTheDocument();
+    expect(screen.getByText("已链接")).toBeInTheDocument();
   });
 
   it("shows 'not detected' badge for undetected agents", () => {
     renderDialog();
     // gemini-cli has is_detected: false
-    expect(screen.getByText("(not detected)")).toBeInTheDocument();
+    expect(screen.getByText("(未检测到)")).toBeInTheDocument();
   });
 
   it("shows symlink/copy radio options", () => {
     renderDialog();
     // The radio items are rendered
-    expect(screen.getByText("Symlink")).toBeInTheDocument();
-    expect(screen.getByText("Copy")).toBeInTheDocument();
+    expect(screen.getByText("符号链接")).toBeInTheDocument();
+    expect(screen.getByText("复制安装")).toBeInTheDocument();
   });
 
   // ── Confirm ───────────────────────────────────────────────────────────────
@@ -136,7 +136,7 @@ describe("InstallDialog", () => {
     // linked agents (claude-code) are not pre-selected by default
     // So 2 are pre-selected: cursor and gemini-cli
     expect(
-      screen.getByRole("button", { name: /Install to 2 platforms/i })
+      screen.getByRole("button", { name: /安装到 2 个平台/i })
     ).toBeInTheDocument();
   });
 
@@ -145,7 +145,7 @@ describe("InstallDialog", () => {
 
     renderDialog();
     const confirmBtn = screen.getByRole("button", {
-      name: /Install to .* platforms?/i,
+      name: /安装到 .* 个平台/i,
     });
     fireEvent.click(confirmBtn);
 
@@ -163,7 +163,7 @@ describe("InstallDialog", () => {
 
     renderDialog();
     const confirmBtn = screen.getByRole("button", {
-      name: /Install to .* platforms?/i,
+      name: /安装到 .* 个平台/i,
     });
     fireEvent.click(confirmBtn);
 
@@ -182,12 +182,12 @@ describe("InstallDialog", () => {
     renderDialog();
 
     // Select the Copy radio button
-    const copyRadio = screen.getByText("Copy").closest("label");
+    const copyRadio = screen.getByText("复制安装").closest("label");
     expect(copyRadio).not.toBeNull();
     fireEvent.click(copyRadio!);
 
     const confirmBtn = screen.getByRole("button", {
-      name: /Install to .* platforms?/i,
+      name: /安装到 .* 个平台/i,
     });
     fireEvent.click(confirmBtn);
 
@@ -205,7 +205,7 @@ describe("InstallDialog", () => {
 
     renderDialog();
     const confirmBtn = screen.getByRole("button", {
-      name: /Install to .* platforms?/i,
+      name: /安装到 .* 个平台/i,
     });
     fireEvent.click(confirmBtn);
 
@@ -219,7 +219,7 @@ describe("InstallDialog", () => {
 
     renderDialog();
     const confirmBtn = screen.getByRole("button", {
-      name: /Install to .* platforms?/i,
+      name: /安装到 .* 个平台/i,
     });
     fireEvent.click(confirmBtn);
 
@@ -233,7 +233,7 @@ describe("InstallDialog", () => {
 
   it("calls onOpenChange(false) when Cancel is clicked", () => {
     renderDialog();
-    const cancelBtn = screen.getByRole("button", { name: /Cancel/i });
+    const cancelBtn = screen.getByRole("button", { name: /取消/i });
     fireEvent.click(cancelBtn);
     expect(mockOnOpenChange).toHaveBeenCalledWith(false);
   });
@@ -245,7 +245,7 @@ describe("InstallDialog", () => {
 
     // Initially 2 selected (cursor + gemini-cli)
     expect(
-      screen.getByRole("button", { name: /Install to 2 platforms/i })
+      screen.getByRole("button", { name: /安装到 2 个平台/i })
     ).toBeInTheDocument();
 
     // Check Claude Code (add 1 more)
@@ -254,7 +254,7 @@ describe("InstallDialog", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: /Install to 3 platforms/i })
+        screen.getByRole("button", { name: /安装到 3 个平台/i })
       ).toBeInTheDocument();
     });
   });
@@ -278,7 +278,7 @@ describe("InstallDialog", () => {
 
     // 0 selected → confirm button disabled
     const confirmBtn = screen.getByRole("button", {
-      name: /Install to 0 platforms?/i,
+      name: /安装到 0 个平台/i,
     });
     expect(confirmBtn).toBeDisabled();
   });

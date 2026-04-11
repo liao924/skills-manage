@@ -158,14 +158,14 @@ describe("CollectionView", () => {
 
   it("shows loading state when isLoadingDetail is true", () => {
     renderCollectionView("col-1", { isLoadingDetail: true, currentDetail: null });
-    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+    expect(screen.getByText(/正在加载技能集/i)).toBeInTheDocument();
   });
 
   it("shows empty skills state when collection has no skills", () => {
     renderCollectionView("col-1", {
       currentDetail: { ...mockCollectionDetail, skills: [] },
     });
-    expect(screen.getByText(/No skills/i)).toBeInTheDocument();
+    expect(screen.getByText(/此技能集还没有技能/i)).toBeInTheDocument();
   });
 
   // ── Remove Skill ───────────────────────────────────────────────────────────
@@ -174,7 +174,7 @@ describe("CollectionView", () => {
     mockRemoveSkillFromCollection.mockResolvedValueOnce(undefined);
     renderCollectionView();
 
-    const removeButtons = screen.getAllByRole("button", { name: /remove .* from collection/i });
+    const removeButtons = screen.getAllByRole("button", { name: /从技能集中移除/i });
     fireEvent.click(removeButtons[0]);
 
     await waitFor(() => {
@@ -186,11 +186,11 @@ describe("CollectionView", () => {
 
   it("renders Edit, Delete, Export, Add Skill, and Batch Install buttons", () => {
     renderCollectionView();
-    expect(screen.getByRole("button", { name: /edit/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /delete/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /export/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /add skill/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /batch install/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /编辑技能集/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /删除技能集/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /导出技能集/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /添加技能到技能集/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /批量安装技能集/i })).toBeInTheDocument();
   });
 
   // ── Export ────────────────────────────────────────────────────────────────
@@ -209,7 +209,7 @@ describe("CollectionView", () => {
     });
 
     renderCollectionView();
-    const exportButton = screen.getByRole("button", { name: /export/i });
+    const exportButton = screen.getByRole("button", { name: /导出技能集/i });
     fireEvent.click(exportButton);
 
     await waitFor(() => {

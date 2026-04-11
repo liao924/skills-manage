@@ -1,5 +1,6 @@
 import { Check, X, PackagePlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AgentWithStatus, SkillWithLinks } from "@/types";
@@ -50,6 +51,7 @@ export function CentralSkillCard({
   className,
 }: CentralSkillCardProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   // Only show non-central agents for link status.
   const targetAgents = agents.filter((a) => a.id !== "central");
 
@@ -63,7 +65,7 @@ export function CentralSkillCard({
             <button
               className="font-medium text-sm text-foreground truncate hover:text-primary hover:underline text-left w-full"
               onClick={() => navigate(`/skill/${skill.id}`)}
-              aria-label={`View details for ${skill.name}`}
+              aria-label={t("central.viewDetailsLabel", { name: skill.name })}
             >
               {skill.name}
             </button>
@@ -82,9 +84,9 @@ export function CentralSkillCard({
               size="sm"
               onClick={() => navigate(`/skill/${skill.id}`)}
               className="text-xs text-muted-foreground"
-              aria-label={`View details for ${skill.name}`}
+              aria-label={t("central.viewDetailsLabel", { name: skill.name })}
             >
-              [详情]
+              {t("central.viewDetails")}
             </Button>
 
             {/* Install to... button */}
@@ -92,10 +94,10 @@ export function CentralSkillCard({
               variant="default"
               size="sm"
               onClick={() => onInstallClick(skill)}
-              aria-label={`Install ${skill.name} to platforms`}
+              aria-label={t("central.installLabel", { name: skill.name })}
             >
               <PackagePlus className="size-3.5" />
-              <span>Install to...</span>
+              <span>{t("central.installTo")}</span>
             </Button>
           </div>
         </div>

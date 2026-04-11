@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import {
   Dialog,
@@ -36,6 +37,7 @@ export function CollectionInstallDialog({
   agents,
   onInstall,
 }: CollectionInstallDialogProps) {
+  const { t } = useTranslation();
   const targetAgents = agents.filter((a) => a.id !== "central");
 
   const [selectedAgentIds, setSelectedAgentIds] = useState<Set<string>>(new Set());
@@ -69,7 +71,7 @@ export function CollectionInstallDialog({
   async function handleInstall() {
     const agentIds = Array.from(selectedAgentIds);
     if (agentIds.length === 0) {
-      setError("Please select at least one platform.");
+      setError(t("batchInstall.selectPlatform"));
       return;
     }
 
@@ -93,20 +95,20 @@ export function CollectionInstallDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>批量安装 — {collectionName}</DialogTitle>
+          <DialogTitle>{t("batchInstall.title", { name: collectionName })}</DialogTitle>
           <DialogClose />
         </DialogHeader>
 
         <DialogBody className="space-y-5">
           <DialogDescription>
-            将此 Collection 中的 {skillCount} 个 Skills 以 Symlink 方式安装到选中的平台。
+            {t("batchInstall.desc", { count: skillCount })}
           </DialogDescription>
 
           {/* Platform checkboxes */}
           <div className="space-y-2.5" role="group" aria-label="Select platforms">
             {targetAgents.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No platforms detected. Add platforms in Settings.
+                {t("batchInstall.noPlatforms")}
               </p>
             ) : (
               targetAgents.map((agent) => {
@@ -128,7 +130,7 @@ export function CollectionInstallDialog({
                     </span>
                     {!agent.is_detected && (
                       <span className="text-xs text-muted-foreground">
-                        (not detected)
+                        {t("batchInstall.notDetected")}
                       </span>
                     )}
                   </div>
@@ -141,7 +143,10 @@ export function CollectionInstallDialog({
           {result && result.failed.length > 0 && (
             <div className="space-y-1">
               <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-                {result.succeeded.length} succeeded, {result.failed.length} failed:
+                {t("batchInstall.succeeded", {
+                  succeeded: result.succeeded.length,
+                  failed: result.failed.length,
+                })}
               </p>
               <ul className="text-xs text-muted-foreground space-y-0.5">
                 {result.failed.map((f) => (
@@ -156,7 +161,7 @@ export function CollectionInstallDialog({
                 onClick={() => onOpenChange(false)}
                 className="mt-2"
               >
-                关闭
+                {t("batchInstall.close")}
               </Button>
             </div>
           )}
@@ -175,7 +180,7 @@ export function CollectionInstallDialog({
               onClick={() => onOpenChange(false)}
               disabled={isLoading}
             >
-              取消
+              {t("batchInstall.cancel")}
             </Button>
             <Button
               onClick={handleInstall}
@@ -184,10 +189,10 @@ export function CollectionInstallDialog({
               {isLoading ? (
                 <>
                   <Loader2 className="size-3.5 animate-spin" />
-                  Installing...
+                  {t("batchInstall.installing")}
                 </>
               ) : (
-                `安装到 ${selectedAgentIds.size} 个平台`
+                t("batchInstall.install", { count: selectedAgentIds.size })
               )}
             </Button>
           </DialogFooter>

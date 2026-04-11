@@ -124,8 +124,8 @@ describe("PlatformView", () => {
 
   it("shows source indicator on skill cards", () => {
     renderPlatformView();
-    expect(screen.getByText("Central Skills · symlink")).toBeInTheDocument();
-    expect(screen.getByText("独立安装 · copy")).toBeInTheDocument();
+    expect(screen.getByText("中央技能库 · 符号链接")).toBeInTheDocument();
+    expect(screen.getByText("独立安装 · 复制安装")).toBeInTheDocument();
   });
 
   // ── Empty State ───────────────────────────────────────────────────────────
@@ -155,7 +155,7 @@ describe("PlatformView", () => {
     );
 
     expect(
-      screen.getByText(/No skills installed for Claude Code/)
+      screen.getByText(/该平台暂无 skills/)
     ).toBeInTheDocument();
   });
 
@@ -181,7 +181,7 @@ describe("PlatformView", () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText("Platform not found")).toBeInTheDocument();
+    expect(screen.getByText("未找到平台")).toBeInTheDocument();
   });
 
   // ── Search / Filter ───────────────────────────────────────────────────────
@@ -189,13 +189,13 @@ describe("PlatformView", () => {
   it("renders search input", () => {
     renderPlatformView();
     expect(
-      screen.getByPlaceholderText(/Search skills/)
+      screen.getByPlaceholderText(/搜索 skills/)
     ).toBeInTheDocument();
   });
 
   it("filters skills by name when searching", async () => {
     renderPlatformView();
-    const searchInput = screen.getByPlaceholderText(/Search skills/);
+    const searchInput = screen.getByPlaceholderText(/搜索 skills/);
     fireEvent.change(searchInput, { target: { value: "frontend" } });
 
     await waitFor(() => {
@@ -206,7 +206,7 @@ describe("PlatformView", () => {
 
   it("filters skills by description when searching", async () => {
     renderPlatformView();
-    const searchInput = screen.getByPlaceholderText(/Search skills/);
+    const searchInput = screen.getByPlaceholderText(/搜索 skills/);
     fireEvent.change(searchInput, { target: { value: "actionable" } });
 
     await waitFor(() => {
@@ -217,7 +217,7 @@ describe("PlatformView", () => {
 
   it("shows all skills when search is cleared", async () => {
     renderPlatformView();
-    const searchInput = screen.getByPlaceholderText(/Search skills/);
+    const searchInput = screen.getByPlaceholderText(/搜索 skills/);
     fireEvent.change(searchInput, { target: { value: "frontend" } });
     fireEvent.change(searchInput, { target: { value: "" } });
 
@@ -229,11 +229,11 @@ describe("PlatformView", () => {
 
   it("shows empty state message when search has no results", async () => {
     renderPlatformView();
-    const searchInput = screen.getByPlaceholderText(/Search skills/);
+    const searchInput = screen.getByPlaceholderText(/搜索 skills/);
     fireEvent.change(searchInput, { target: { value: "nonexistent-skill-xyz" } });
 
     await waitFor(() => {
-      expect(screen.getByText(/No skills match/)).toBeInTheDocument();
+      expect(screen.getByText(/没有匹配的 skills/)).toBeInTheDocument();
     });
   });
 

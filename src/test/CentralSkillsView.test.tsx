@@ -128,9 +128,9 @@ describe("CentralSkillsView", () => {
 
   // ── Header ────────────────────────────────────────────────────────────────
 
-  it("shows 'Central Skills' in header", () => {
+  it("shows page title in header", () => {
     renderCentralSkillsView();
-    expect(screen.getByText("Central Skills")).toBeInTheDocument();
+    expect(screen.getByText("中央技能库")).toBeInTheDocument();
   });
 
   it("shows the central skills directory path", () => {
@@ -141,14 +141,14 @@ describe("CentralSkillsView", () => {
   it("shows a refresh button", () => {
     renderCentralSkillsView();
     expect(
-      screen.getByRole("button", { name: /Refresh central skills/i })
+      screen.getByRole("button", { name: /刷新中央技能库/i })
     ).toBeInTheDocument();
   });
 
   it("shows a search input", () => {
     renderCentralSkillsView();
     expect(
-      screen.getByPlaceholderText(/Search central skills/i)
+      screen.getByPlaceholderText(/搜索中央技能库/i)
     ).toBeInTheDocument();
   });
 
@@ -170,12 +170,12 @@ describe("CentralSkillsView", () => {
   it("shows Install to... button for each skill", () => {
     renderCentralSkillsView();
     const installButtons = screen.getAllByRole("button", {
-      name: /Install .* to platforms/i,
+      name: /将 .* 安装到平台/i,
     });
     expect(installButtons).toHaveLength(2);
   });
 
-  it("shows [详情] detail button for each skill", () => {
+  it("shows detail button for each skill", () => {
     renderCentralSkillsView();
     const detailButtons = screen.getAllByText("[详情]");
     expect(detailButtons).toHaveLength(2);
@@ -183,9 +183,9 @@ describe("CentralSkillsView", () => {
 
   it("skill name is a clickable button for detail navigation", () => {
     renderCentralSkillsView();
-    // Both the skill name and the [详情] button have aria-label "View details for ..."
+    // Both the skill name and the [详情] button have aria-label "查看 ... 的详情"
     const detailBtns = screen.getAllByRole("button", {
-      name: /View details for frontend-design/i,
+      name: /查看 frontend-design 的详情/i,
     });
     // Should find at least one (the skill name button)
     expect(detailBtns.length).toBeGreaterThanOrEqual(1);
@@ -216,12 +216,12 @@ describe("CentralSkillsView", () => {
     );
 
     expect(
-      screen.getByText(/Welcome to skills-manage/)
+      screen.getByText(/欢迎使用 skills-manage/)
     ).toBeInTheDocument();
     // Should show guidance about creating a skill
     expect(
-      screen.getByText(/No skills found in/)
-    ).toBeInTheDocument();
+      screen.getAllByText(/agents\/skills/).length
+    ).toBeGreaterThanOrEqual(1);
   });
 
   it("shows loading state", () => {
@@ -237,14 +237,14 @@ describe("CentralSkillsView", () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText("Loading skills...")).toBeInTheDocument();
+    expect(screen.getByText("正在加载 skills...")).toBeInTheDocument();
   });
 
   // ── Search / Filter ───────────────────────────────────────────────────────
 
   it("filters skills by name when searching", async () => {
     renderCentralSkillsView();
-    const searchInput = screen.getByPlaceholderText(/Search central skills/i);
+    const searchInput = screen.getByPlaceholderText(/搜索中央技能库/i);
     fireEvent.change(searchInput, { target: { value: "frontend" } });
 
     await waitFor(() => {
@@ -255,7 +255,7 @@ describe("CentralSkillsView", () => {
 
   it("filters skills by description when searching", async () => {
     renderCentralSkillsView();
-    const searchInput = screen.getByPlaceholderText(/Search central skills/i);
+    const searchInput = screen.getByPlaceholderText(/搜索中央技能库/i);
     fireEvent.change(searchInput, { target: { value: "actionable" } });
 
     await waitFor(() => {
@@ -266,17 +266,17 @@ describe("CentralSkillsView", () => {
 
   it("shows empty state when search has no results", async () => {
     renderCentralSkillsView();
-    const searchInput = screen.getByPlaceholderText(/Search central skills/i);
+    const searchInput = screen.getByPlaceholderText(/搜索中央技能库/i);
     fireEvent.change(searchInput, { target: { value: "zzz-nonexistent" } });
 
     await waitFor(() => {
-      expect(screen.getByText(/No skills match/)).toBeInTheDocument();
+      expect(screen.getByText(/没有匹配的 skills/)).toBeInTheDocument();
     });
   });
 
   it("restores all skills when search is cleared", async () => {
     renderCentralSkillsView();
-    const searchInput = screen.getByPlaceholderText(/Search central skills/i);
+    const searchInput = screen.getByPlaceholderText(/搜索中央技能库/i);
     fireEvent.change(searchInput, { target: { value: "frontend" } });
     fireEvent.change(searchInput, { target: { value: "" } });
 
@@ -298,7 +298,7 @@ describe("CentralSkillsView", () => {
   it("calls rescan then loadCentralSkills when refresh button is clicked", async () => {
     renderCentralSkillsView();
     const refreshBtn = screen.getByRole("button", {
-      name: /Refresh central skills/i,
+      name: /刷新中央技能库/i,
     });
     fireEvent.click(refreshBtn);
 
@@ -315,7 +315,7 @@ describe("CentralSkillsView", () => {
   it("opens install dialog when 'Install to...' is clicked", async () => {
     renderCentralSkillsView();
     const installBtn = screen.getAllByRole("button", {
-      name: /Install .* to platforms/i,
+      name: /将 .* 安装到平台/i,
     })[0];
     fireEvent.click(installBtn);
 

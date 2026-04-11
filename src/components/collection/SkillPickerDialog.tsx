@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Loader2, Search } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { useTranslation } from "react-i18next";
 
 import {
   Dialog,
@@ -35,6 +36,7 @@ export function SkillPickerDialog({
   existingSkillIds,
   onAdd,
 }: SkillPickerDialogProps) {
+  const { t } = useTranslation();
   const [skills, setSkills] = useState<SkillWithLinks[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
@@ -107,24 +109,24 @@ export function SkillPickerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>添加 Skill</DialogTitle>
+          <DialogTitle>{t("skillPicker.title")}</DialogTitle>
           <DialogClose />
         </DialogHeader>
 
         <DialogBody className="space-y-4">
           <DialogDescription>
-            从 Central Skills 中选择要添加到此 Collection 的技能。
+            {t("skillPicker.desc")}
           </DialogDescription>
 
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
             <Input
-              placeholder="搜索 skills..."
+              placeholder={t("skillPicker.searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-8"
-              aria-label="Search skills"
+              aria-label={t("skillPicker.searchPlaceholder")}
             />
           </div>
 
@@ -137,15 +139,15 @@ export function SkillPickerDialog({
             {isLoading ? (
               <div className="flex items-center justify-center py-6 gap-2 text-muted-foreground text-sm">
                 <Loader2 className="size-4 animate-spin" />
-                Loading skills...
+                {t("skillPicker.loading")}
               </div>
             ) : filteredSkills.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">
                 {skills.length === 0
-                  ? "No skills available in Central Skills"
+                  ? t("skillPicker.noSkills")
                   : existingSkillIds.length === skills.length
-                  ? "All skills already added"
-                  : `No skills match "${searchQuery}"`}
+                  ? t("skillPicker.allAdded")
+                  : t("skillPicker.noMatch", { query: searchQuery })}
               </p>
             ) : (
               filteredSkills.map((skill) => {
@@ -189,7 +191,7 @@ export function SkillPickerDialog({
             onClick={() => onOpenChange(false)}
             disabled={isAdding}
           >
-            取消
+            {t("skillPicker.cancel")}
           </Button>
           <Button
             onClick={handleAdd}
@@ -198,10 +200,12 @@ export function SkillPickerDialog({
             {isAdding ? (
               <>
                 <Loader2 className="size-3.5 animate-spin" />
-                添加中...
+                {t("skillPicker.adding")}
               </>
+            ) : selectedSkillIds.size > 0 ? (
+              t("skillPicker.addCount", { count: selectedSkillIds.size })
             ) : (
-              `添加 ${selectedSkillIds.size > 0 ? selectedSkillIds.size + " 个 " : ""}Skill`
+              t("skillPicker.add")
             )}
           </Button>
         </DialogFooter>

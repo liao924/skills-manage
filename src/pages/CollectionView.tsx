@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import {
   Pencil,
   Trash2,
@@ -29,6 +30,7 @@ interface SkillRowProps {
 }
 
 function SkillRow({ skill, onRemove }: SkillRowProps) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center gap-3 py-2.5 px-4 border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors group">
       <BookOpen className="size-4 text-muted-foreground shrink-0" />
@@ -42,7 +44,7 @@ function SkillRow({ skill, onRemove }: SkillRowProps) {
       </div>
       <button
         onClick={onRemove}
-        aria-label={`Remove ${skill.name} from collection`}
+        aria-label={t("collection.removeSkillLabel", { name: skill.name })}
         className="shrink-0 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
       >
         <X className="size-3.5" />
@@ -56,6 +58,7 @@ function SkillRow({ skill, onRemove }: SkillRowProps) {
 export function CollectionView() {
   const { collectionId } = useParams<{ collectionId: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const currentDetail = useCollectionStore((s) => s.currentDetail);
   const isLoadingDetail = useCollectionStore((s) => s.isLoadingDetail);
@@ -147,7 +150,7 @@ export function CollectionView() {
     return (
       <div className="flex items-center justify-center h-full gap-3 text-muted-foreground">
         <Loader2 className="size-5 animate-spin" />
-        <span className="text-sm">Loading collection...</span>
+        <span className="text-sm">{t("collection.loading")}</span>
       </div>
     );
   }
@@ -159,7 +162,7 @@ export function CollectionView() {
       <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
         <p className="text-sm text-destructive">{error}</p>
         <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
-          Go back
+          {t("collection.goBack")}
         </Button>
       </div>
     );
@@ -191,26 +194,26 @@ export function CollectionView() {
               variant="outline"
               size="sm"
               onClick={() => setIsEditorOpen(true)}
-              aria-label="Edit collection"
+              aria-label={t("collection.editLabel")}
             >
               <Pencil className="size-3.5" />
-              <span>Edit</span>
+              <span>{t("collection.edit")}</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={handleExport}
-              aria-label="Export collection"
+              aria-label={t("collection.exportLabel")}
             >
               <Download className="size-3.5" />
-              <span>Export</span>
+              <span>{t("collection.export")}</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={handleDelete}
               disabled={isDeleting}
-              aria-label="Delete collection"
+              aria-label={t("collection.deleteLabel")}
               className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
             >
               {isDeleting ? (
@@ -218,7 +221,7 @@ export function CollectionView() {
               ) : (
                 <Trash2 className="size-3.5" />
               )}
-              <span>Delete</span>
+              <span>{t("collection.delete")}</span>
             </Button>
           </div>
         </div>
@@ -233,7 +236,7 @@ export function CollectionView() {
       {/* Skills section header */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-border">
         <span className="text-sm font-medium text-muted-foreground">
-          Skills ({currentDetail.skills.length})
+          {t("collection.skills", { count: currentDetail.skills.length })}
         </span>
         <div className="flex items-center gap-2">
           <Button
@@ -241,19 +244,19 @@ export function CollectionView() {
             size="sm"
             onClick={() => setIsInstallOpen(true)}
             disabled={currentDetail.skills.length === 0}
-            aria-label="Batch install collection"
+            aria-label={t("collection.batchInstallLabel")}
           >
             <PackagePlus className="size-3.5" />
-            <span>Batch install to...</span>
+            <span>{t("collection.batchInstall")}</span>
           </Button>
           <Button
             variant="default"
             size="sm"
             onClick={() => setIsPickerOpen(true)}
-            aria-label="Add skill to collection"
+            aria-label={t("collection.addSkillLabel")}
           >
             <Plus className="size-3.5" />
-            <span>Add Skill</span>
+            <span>{t("collection.addSkill")}</span>
           </Button>
         </div>
       </div>
@@ -266,8 +269,8 @@ export function CollectionView() {
               <BookOpen className="size-12 text-muted-foreground opacity-60" />
             </div>
             <div className="text-center space-y-1">
-              <p className="text-sm font-medium text-muted-foreground">No skills in this collection yet.</p>
-              <p className="text-xs text-muted-foreground/70">Add skills to start organizing your toolkit.</p>
+              <p className="text-sm font-medium text-muted-foreground">{t("collection.noSkillsTitle")}</p>
+              <p className="text-xs text-muted-foreground/70">{t("collection.noSkillsDesc")}</p>
             </div>
             <Button
               variant="default"
@@ -275,7 +278,7 @@ export function CollectionView() {
               onClick={() => setIsPickerOpen(true)}
             >
               <Plus className="size-3.5" />
-              Add your first skill
+              {t("collection.addFirstSkill")}
             </Button>
           </div>
         ) : (

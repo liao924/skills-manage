@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import {
   Dialog,
@@ -32,6 +33,7 @@ export function CollectionEditor({
   onOpenChange,
   collection,
 }: CollectionEditorProps) {
+  const { t } = useTranslation();
   const createCollection = useCollectionStore((s) => s.createCollection);
   const updateCollection = useCollectionStore((s) => s.updateCollection);
 
@@ -56,7 +58,7 @@ export function CollectionEditor({
   async function handleSubmit() {
     const trimmedName = name.trim();
     if (!trimmedName) {
-      setValidationError("名称不能为空");
+      setValidationError(t("collectionEditor.nameRequired"));
       return;
     }
 
@@ -83,7 +85,7 @@ export function CollectionEditor({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? "编辑 Collection" : "新建 Collection"}
+            {isEditMode ? t("collectionEditor.editTitle") : t("collectionEditor.createTitle")}
           </DialogTitle>
           <DialogClose />
         </DialogHeader>
@@ -91,18 +93,18 @@ export function CollectionEditor({
         <DialogBody className="space-y-4">
           <DialogDescription>
             {isEditMode
-              ? "修改 Collection 的名称和描述。"
-              : "为新的 Collection 输入名称和描述。"}
+              ? t("collectionEditor.editDesc")
+              : t("collectionEditor.createDesc")}
           </DialogDescription>
 
           {/* Name field */}
           <div className="space-y-1.5">
             <label htmlFor="collection-name" className="text-sm font-medium">
-              名称 <span className="text-destructive">*</span>
+              {t("collectionEditor.nameLabel")} <span className="text-destructive">*</span>
             </label>
             <Input
               id="collection-name"
-              placeholder="Collection 名称"
+              placeholder={t("collectionEditor.namePlaceholder")}
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
@@ -121,11 +123,11 @@ export function CollectionEditor({
           {/* Description field */}
           <div className="space-y-1.5">
             <label htmlFor="collection-description" className="text-sm font-medium">
-              描述
+              {t("collectionEditor.descLabel")}
             </label>
             <Input
               id="collection-description"
-              placeholder="描述 (可选)"
+              placeholder={t("collectionEditor.descPlaceholder")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={isSubmitting}
@@ -146,18 +148,18 @@ export function CollectionEditor({
             onClick={() => onOpenChange(false)}
             disabled={isSubmitting}
           >
-            取消
+            {t("collectionEditor.cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? (
               <>
                 <Loader2 className="size-3.5 animate-spin" />
-                {isEditMode ? "保存中..." : "创建中..."}
+                {isEditMode ? t("collectionEditor.saving") : t("collectionEditor.creating")}
               </>
             ) : isEditMode ? (
-              "保存"
+              t("collectionEditor.save")
             ) : (
-              "创建"
+              t("collectionEditor.create")
             )}
           </Button>
         </DialogFooter>

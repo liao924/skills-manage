@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Search, PackageOpen } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { usePlatformStore } from "@/stores/platformStore";
 import { useSkillStore } from "@/stores/skillStore";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,7 @@ function EmptyState({ message }: { message: string }) {
 
 export function PlatformView() {
   const { agentId } = useParams<{ agentId: string }>();
+  const { t } = useTranslation();
   const agents = usePlatformStore((state) => state.agents);
 
   const skillsByAgent = useSkillStore((state) => state.skillsByAgent);
@@ -62,7 +64,7 @@ export function PlatformView() {
   if (!agent) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground">
-        Platform not found
+        {t("platform.notFound")}
       </div>
     );
   }
@@ -85,7 +87,7 @@ export function PlatformView() {
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
           <Input
-            placeholder="Search skills..."
+            placeholder={t("platform.searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-8 bg-muted/40"
@@ -96,14 +98,14 @@ export function PlatformView() {
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
         {isLoading ? (
-          <EmptyState message="Loading skills..." />
+          <EmptyState message={t("platform.loading")} />
         ) : skills.length === 0 ? (
           <EmptyState
-            message={`No skills installed for ${agent.display_name}`}
+            message={t("platform.noSkills", { name: agent.display_name })}
           />
         ) : filteredSkills.length === 0 ? (
           <EmptyState
-            message={`No skills match "${searchQuery}"`}
+            message={t("platform.noMatch", { query: searchQuery })}
           />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

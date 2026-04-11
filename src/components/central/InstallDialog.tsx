@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import {
   Dialog,
@@ -38,6 +39,7 @@ export function InstallDialog({
   agents,
   onInstall,
 }: InstallDialogProps) {
+  const { t } = useTranslation();
   // Only show non-central agents in the install dialog.
   const targetAgents = agents.filter((a) => a.id !== "central");
 
@@ -84,7 +86,7 @@ export function InstallDialog({
 
     const agentIds = Array.from(selectedAgentIds);
     if (agentIds.length === 0) {
-      setError("Please select at least one platform.");
+      setError(t("installDialog.selectPlatform"));
       return;
     }
 
@@ -106,20 +108,20 @@ export function InstallDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Install {skill.name}</DialogTitle>
+          <DialogTitle>{t("installDialog.title", { name: skill.name })}</DialogTitle>
           <DialogClose />
         </DialogHeader>
 
         <DialogBody className="space-y-5">
           <DialogDescription>
-            Choose which platforms to install this skill to.
+            {t("installDialog.choosePlatforms")}
           </DialogDescription>
 
           {/* Platform checkboxes */}
           <div className="space-y-2.5" role="group" aria-label="Select platforms">
             {targetAgents.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No platforms detected. Add platforms in Settings.
+                {t("installDialog.noPlatforms")}
               </p>
             ) : (
               targetAgents.map((agent) => {
@@ -149,12 +151,12 @@ export function InstallDialog({
                     </span>
                     {isLinked && (
                       <span className="text-xs text-green-600 dark:text-green-400">
-                        already linked
+                        {t("installDialog.alreadyLinked")}
                       </span>
                     )}
                     {!agent.is_detected && (
                       <span className="text-xs text-muted-foreground">
-                        (not detected)
+                        {t("installDialog.notDetected")}
                       </span>
                     )}
                   </div>
@@ -166,7 +168,7 @@ export function InstallDialog({
           {/* Install method selector */}
           <div className="space-y-2">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Install method
+              {t("installDialog.installMethod")}
             </p>
             <RadioGroup
               value={installMethod}
@@ -174,16 +176,16 @@ export function InstallDialog({
             >
               <label className="flex items-center gap-2.5 cursor-pointer">
                 <RadioItem value="symlink" />
-                <span className="text-sm">Symlink</span>
+                <span className="text-sm">{t("installDialog.symlink")}</span>
                 <span className="text-xs text-muted-foreground">
-                  (recommended — linked to Central Skills)
+                  {t("installDialog.symlinkDesc")}
                 </span>
               </label>
               <label className="flex items-center gap-2.5 cursor-pointer">
                 <RadioItem value="copy" />
-                <span className="text-sm">Copy</span>
+                <span className="text-sm">{t("installDialog.copy")}</span>
                 <span className="text-xs text-muted-foreground">
-                  (independent copy)
+                  {t("installDialog.copyDesc")}
                 </span>
               </label>
             </RadioGroup>
@@ -203,7 +205,7 @@ export function InstallDialog({
             onClick={() => onOpenChange(false)}
             disabled={isLoading}
           >
-            Cancel
+            {t("installDialog.cancel")}
           </Button>
           <Button
             onClick={handleConfirm}
@@ -212,10 +214,10 @@ export function InstallDialog({
             {isLoading ? (
               <>
                 <Loader2 className="size-3.5 animate-spin" />
-                Installing...
+                {t("installDialog.installing")}
               </>
             ) : (
-              `Install to ${selectedAgentIds.size} platform${selectedAgentIds.size !== 1 ? "s" : ""}`
+              t("installDialog.confirmInstall", { count: selectedAgentIds.size })
             )}
           </Button>
         </DialogFooter>

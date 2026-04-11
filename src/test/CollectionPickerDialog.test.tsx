@@ -128,7 +128,7 @@ describe("CollectionPickerDialog", () => {
   it("renders Create new collection button", () => {
     renderDialog();
     expect(
-      screen.getByRole("button", { name: /Create new collection/i })
+      screen.getByRole("button", { name: /新建技能集/i })
     ).toBeInTheDocument();
   });
 
@@ -145,7 +145,7 @@ describe("CollectionPickerDialog", () => {
 
   it("shows 'Already a member' label for collections the skill already belongs to", () => {
     renderDialog({ currentCollectionIds: ["col-1"] });
-    expect(screen.getByText("Already a member")).toBeInTheDocument();
+    expect(screen.getByText("已在其中")).toBeInTheDocument();
   });
 
   it("does not disable checkboxes for collections skill is not in", () => {
@@ -266,7 +266,7 @@ describe("CollectionPickerDialog", () => {
         onAdded={vi.fn()}
       />
     );
-    expect(screen.getByText(/No collections yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/暂无技能集/i)).toBeInTheDocument();
   });
 
   it("shows loading state when collections are loading", () => {
@@ -282,14 +282,14 @@ describe("CollectionPickerDialog", () => {
         onAdded={vi.fn()}
       />
     );
-    expect(screen.getByText(/Loading collections/i)).toBeInTheDocument();
+    expect(screen.getByText(/正在加载技能集/i)).toBeInTheDocument();
   });
 
   // ── Create new collection ─────────────────────────────────────────────────
 
   it("opens CollectionEditor when Create new collection is clicked", () => {
     renderDialog();
-    const createBtn = screen.getByRole("button", { name: /Create new collection/i });
+    const createBtn = screen.getByRole("button", { name: /新建技能集/i });
     fireEvent.click(createBtn);
     expect(screen.getByTestId("collection-editor")).toBeInTheDocument();
   });
@@ -298,7 +298,7 @@ describe("CollectionPickerDialog", () => {
     renderDialog();
     mockLoadCollections.mockClear();
 
-    fireEvent.click(screen.getByRole("button", { name: /Create new collection/i }));
+    fireEvent.click(screen.getByRole("button", { name: /新建技能集/i }));
     // Close the editor
     fireEvent.click(screen.getByText("Close editor"));
 

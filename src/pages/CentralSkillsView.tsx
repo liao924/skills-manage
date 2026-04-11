@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Search, RefreshCw, PackageOpen, FolderOpen, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 import { useCentralSkillsStore } from "@/stores/centralSkillsStore";
 import { usePlatformStore } from "@/stores/platformStore";
@@ -28,23 +29,23 @@ function EmptyState({ message }: { message: string }) {
 
 function FirstVisitEmptyState() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center justify-center h-full gap-6 py-16 text-center px-8">
       <div className="p-5 rounded-full bg-primary/10 ring-1 ring-primary/20">
         <PackageOpen className="size-14 text-primary opacity-70" />
       </div>
       <div className="space-y-2">
-        <h2 className="text-xl font-semibold text-foreground">Welcome to skills-manage!</h2>
+        <h2 className="text-xl font-semibold text-foreground">{t("empty.welcomeTitle")}</h2>
         <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
-          No skills found in <code className="bg-muted px-1.5 py-0.5 rounded-md text-xs font-mono">~/.agents/skills/</code>.
-          Get started by creating a SKILL.md file there, or add custom scan directories in Settings.
+          {t("empty.welcomeDesc")}
         </p>
       </div>
       <div className="flex flex-col gap-3 items-center">
         <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-xl px-4 py-3 max-w-xs text-left border border-border">
           <FolderOpen className="size-4 shrink-0 text-primary/60" />
           <span>
-            Create a skill directory at <code className="font-mono">~/.agents/skills/my-skill/SKILL.md</code>
+            {t("empty.createHint")} <code className="font-mono">~/.agents/skills/my-skill/SKILL.md</code>
           </span>
         </div>
         <Button
@@ -54,7 +55,7 @@ function FirstVisitEmptyState() {
           className="gap-2"
         >
           <Settings className="size-4" />
-          Go to Settings
+          {t("empty.goToSettings")}
         </Button>
       </div>
     </div>
@@ -64,6 +65,7 @@ function FirstVisitEmptyState() {
 // ─── CentralSkillsView ────────────────────────────────────────────────────────
 
 export function CentralSkillsView() {
+  const { t } = useTranslation();
   const skills = useCentralSkillsStore((state) => state.skills);
   const agents = useCentralSkillsStore((state) => state.agents);
   const isLoading = useCentralSkillsStore((state) => state.isLoading);
@@ -131,9 +133,9 @@ export function CentralSkillsView() {
       {/* Header */}
       <div className="border-b border-border px-6 py-4 flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold">Central Skills</h1>
+          <h1 className="text-xl font-semibold">{t("central.title")}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            ~/.agents/skills/
+            {t("central.path")}
           </p>
         </div>
         <Button
@@ -141,7 +143,7 @@ export function CentralSkillsView() {
           size="icon"
           onClick={handleRefresh}
           disabled={isLoading}
-          aria-label="Refresh central skills"
+          aria-label={t("central.refresh")}
         >
           <RefreshCw className={`size-4 ${isLoading ? "animate-spin" : ""}`} />
         </Button>
@@ -152,11 +154,11 @@ export function CentralSkillsView() {
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
           <Input
-            placeholder="Search central skills..."
+            placeholder={t("central.searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-8 bg-muted/40"
-            aria-label="Search central skills"
+            aria-label={t("central.searchPlaceholder")}
           />
         </div>
       </div>
@@ -164,11 +166,11 @@ export function CentralSkillsView() {
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
         {isLoading ? (
-          <EmptyState message="Loading skills..." />
+          <EmptyState message={t("central.loading")} />
         ) : skills.length === 0 ? (
           <FirstVisitEmptyState />
         ) : filteredSkills.length === 0 ? (
-          <EmptyState message={`No skills match "${searchQuery}"`} />
+          <EmptyState message={t("central.noMatch", { query: searchQuery })} />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {filteredSkills.map((skill) => (

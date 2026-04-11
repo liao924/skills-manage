@@ -1,0 +1,34 @@
+{
+  "featureId": "ui-i18n-setup",
+  "reviewedAt": "2026-04-11T14:59:24Z",
+  "commitId": "cd4e2b2",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The i18n setup adds the translation files, hook wiring, and settings language switcher, but two core requirements are still broken in the shipped milestone: the chosen language does not persist across reloads, and several runtime strings still bypass the translation resources entirely.",
+    "issues": [
+      {
+        "file": "src/i18n/index.ts",
+        "line": 17,
+        "severity": "blocking",
+        "description": "The init config hardcodes `lng: \"zh\"` while also enabling `i18next-browser-languagedetector` with localStorage caching. i18next only calls the detector on init when `lng` is unset, so a user who switches to English is forced back to Chinese on the next reload instead of getting the saved language from `skills-manage-language`. That breaks the feature's promised \"language preference persists across sessions\" behavior."
+      },
+      {
+        "file": "src/pages/CollectionView.tsx",
+        "line": 100,
+        "severity": "blocking",
+        "description": "The translation sweep is incomplete: `CollectionView` still shows a hard-coded English delete confirmation and mixed Chinese/English error toasts (`94`, `100`, `110`, `131`, `143`), `CentralSkillsView` still emits English failure toasts (`113`, `116`, `127`), `SkillDetail` still emits Chinese install/uninstall toasts (`239`, `250`), `CentralSkillCard` still exposes English tooltip/ARIA copy for link status (`24`, `28`, `30`), and `Sidebar` still has an English hidden-file-input aria-label (`388`). Switching to English therefore still surfaces Chinese runtime copy, and Chinese mode still leaks English dialog/accessibility text, which violates the requirement to extract all user-facing strings."
+      },
+      {
+        "file": "src/i18n/locales/zh.json",
+        "line": 36,
+        "severity": "non_blocking",
+        "description": "A large portion of the Chinese locale still keeps English product nouns (`skills`, `Collection`, `Skill`, `Central Skills`) even though the feature spec defined a Chinese glossary (`技能`, `技能集`, `中央技能库`). Examples include `platform.searchPlaceholder` / `loading` / `noSkills`, `collectionEditor.createTitle`, `collectionPicker.title`, and `skillPicker.desc`. The app still functions, but the Chinese localization ships with inconsistent terminology."
+      }
+    ]
+  },
+  "sharedStateObservations": [],
+  "addressesFailureFrom": null,
+  "summary": "Fail. The i18n infrastructure is in place, but the feature does not yet satisfy its own contract because persisted language selection is broken and multiple user-facing strings still bypass the translation resources."
+}

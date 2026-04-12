@@ -1,7 +1,7 @@
 {
   "milestone": "discover-scan",
-  "round": 1,
-  "status": "fail",
+  "round": 2,
+  "status": "pass",
   "validatorsRun": {
     "test": {
       "passed": true,
@@ -30,40 +30,21 @@
     }
   },
   "reviewsSummary": {
-    "total": 2,
+    "total": 1,
     "passed": 1,
-    "failed": 1,
-    "failedFeatures": [
-      "complete-discover-backend"
-    ]
+    "failed": 0,
+    "failedFeatures": []
   },
-  "blockingIssues": [
-    {
-      "featureId": "complete-discover-backend",
-      "file": "src-tauri/src/commands/discover.rs",
-      "line": 162,
-      "severity": "blocking",
-      "description": "The discover scanner only inspects immediate children of each configured root, so default roots like `~/Documents` cannot discover nested repositories under organizer folders such as the `~/Documents/GitHubMe/minimax-skills` path called out by VAL-DISC-003.",
-      "suggestedFix": "Implement recursive traversal (or recursive fallback) so the scan can find matching `.*/skills` directories below the first level and group results by the actual project directory."
-    },
-    {
-      "featureId": "complete-discover-backend",
-      "file": "src-tauri/src/commands/discover.rs",
-      "line": 374,
-      "severity": "blocking",
-      "description": "The discover cache only INSERT OR IGNOREs newly found rows and never removes stale discovered_skills entries, so deleted or renamed project skills continue to appear in cached startup results after rescans.",
-      "suggestedFix": "Reconcile discovered_skills for the scanned roots on each run by deleting rows that were not rediscovered and updating metadata for rows whose paths/frontmatter changed."
-    }
-  ],
+  "blockingIssues": [],
   "appliedUpdates": [],
   "suggestedGuidanceUpdates": [
     {
       "target": "skills",
-      "suggestion": "Update the scrutiny validator/reviewer procedure so Task-spawned `scrutiny-feature-reviewer` subagents can run with automatic execution approval in this worker environment, or document the manual-review fallback explicitly.",
-      "evidence": "In this discover-scan scrutiny run, both reviewer Task invocations (`complete-discover-backend` and `complete-discover-frontend`) exited immediately with `Exec ended early: insufficient permission to proceed`, so the validator had to review the transcript skeletons, handoffs, commit diffs, and current source manually.",
+      "suggestion": "Update the scrutiny review/validator procedure so Task-spawned `scrutiny-feature-reviewer` subagents can run with automatic execution approval in this worker environment, or explicitly document the manual-review fallback.",
+      "evidence": "In this discover-scan re-run, the Task invocation for `fix-discover-recursive-scan-and-cache` again exited immediately with `Exec ended early: insufficient permission to proceed`, so the validator had to perform the fix review manually after checking the feature transcript skeleton, handoff artifact, commit diff, and current source.",
       "isSystemic": true
     }
   ],
   "rejectedObservations": [],
-  "previousRound": null
+  "previousRound": ".factory/validation/discover-scan/scrutiny/synthesis.round1.json"
 }

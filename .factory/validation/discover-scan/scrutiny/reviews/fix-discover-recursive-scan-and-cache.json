@@ -1,0 +1,15 @@
+{
+  "featureId": "fix-discover-recursive-scan-and-cache",
+  "reviewedAt": "2026-04-12T17:28:27Z",
+  "commitId": "db243ff",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The fix addresses the prior discover-backend scrutiny failures. The scan now recursively traverses configured roots with depth and skip guards so nested repositories under organizer folders are discovered, `start_project_scan` reconciles stale `discovered_skills` rows within scanned roots after each run, and the platform-import flow no longer deletes the discovered record mid-batch. The added regression tests cover deep nesting, skipped directories, stale-cache cleanup, scoped reconciliation, and repeated platform imports.",
+    "issues": []
+  },
+  "sharedStateObservations": [],
+  "addressesFailureFrom": "complete-discover-backend",
+  "summary": "Pass. The discover fix resolves the prior blocking recursion and cache-reconciliation failures and keeps discovered records available across multi-platform installs."
+}

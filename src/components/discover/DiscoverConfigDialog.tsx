@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { FolderSearch, Loader2, AlertTriangle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -34,8 +33,6 @@ export function DiscoverConfigDialog({ open, onOpenChange }: DiscoverConfigDialo
 
   const agents = usePlatformStore((s) => s.agents);
 
-  const [isStarting, setIsStarting] = useState(false);
-
   // Load roots when dialog opens.
   const handleOpenChange = (open: boolean) => {
     if (open) {
@@ -57,14 +54,12 @@ export function DiscoverConfigDialog({ open, onOpenChange }: DiscoverConfigDialo
 
   const enabledCount = scanRoots.filter((r) => r.enabled && r.exists).length;
 
-  async function handleStartScan() {
-    setIsStarting(true);
-    try {
-      await startScan();
-      onOpenChange(false);
-    } finally {
-      setIsStarting(false);
-    }
+  function handleStartScan() {
+    // Close the dialog IMMEDIATELY so the user can see the ProgressView
+    // with the Stop button. The scan runs asynchronously in the background;
+    // errors are captured in the store's error state.
+    onOpenChange(false);
+    startScan();
   }
 
   return (
@@ -147,19 +142,10 @@ export function DiscoverConfigDialog({ open, onOpenChange }: DiscoverConfigDialo
           </Button>
           <Button
             onClick={handleStartScan}
-            disabled={enabledCount === 0 || isStarting}
+            disabled={enabledCount === 0}
           >
-            {isStarting ? (
-              <>
-                <Loader2 className="size-4 animate-spin mr-1" />
-                {t("discover.scanning")}
-              </>
-            ) : (
-              <>
-                <FolderSearch className="size-4 mr-1" />
-                {t("discover.startScan")}
-              </>
-            )}
+            <FolderSearch className="size-4 mr-1" />
+            {t("discover.startScan")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -273,6 +273,24 @@ describe("DiscoverView", () => {
     expect(screen.getByText("Stop & Show Results")).toBeInTheDocument();
   });
 
+  it("stop button calls stopScan when clicked during active scan", async () => {
+    mockStopScan.mockResolvedValueOnce(undefined);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked(useDiscoverStore).mockImplementation((selector: any) =>
+      selector(buildDiscoverStoreState({ isScanning: true }))
+    );
+
+    renderDiscoverView();
+
+    const stopBtn = screen.getByRole("button", { name: /stop & show results/i });
+    expect(stopBtn).toBeVisible();
+    fireEvent.click(stopBtn);
+
+    await waitFor(() => {
+      expect(mockStopScan).toHaveBeenCalled();
+    });
+  });
+
   // ── Search ─────────────────────────────────────────────────────────────────
 
   it("calls setSearchQuery when typing in search", () => {

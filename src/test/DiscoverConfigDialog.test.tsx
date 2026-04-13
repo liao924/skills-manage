@@ -192,6 +192,21 @@ describe("DiscoverConfigDialog", () => {
     });
   });
 
+  it("closes dialog immediately when Start Scan is clicked (before scan completes)", () => {
+    // Make startScan return a promise that never resolves to prove
+    // the dialog closes WITHOUT waiting for the scan to finish.
+    mockStartScan.mockReturnValueOnce(new Promise(() => {}));
+    const { onOpenChange } = renderDialog();
+
+    const startBtn = screen.getByText("Start Scan");
+    fireEvent.click(startBtn);
+
+    // onOpenChange(false) should be called synchronously — the dialog
+    // closes immediately so the user can see the ProgressView with the
+    // Stop button while the scan runs in the background.
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
   // ── Warning when no roots enabled ─────────────────────────────────────────
 
   it("shows warning when no roots are enabled", () => {

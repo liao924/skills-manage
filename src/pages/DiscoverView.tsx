@@ -6,6 +6,7 @@ import {
   Loader2,
   Folder,
   ArrowUpRight,
+  StopCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -73,8 +74,9 @@ function ProgressView() {
         </span>
       </div>
 
-      <div className="flex justify-center">
-        <Button variant="outline" size="sm" onClick={stopScan}>
+      <div className="flex justify-center pt-2">
+        <Button variant="destructive" size="default" onClick={stopScan}>
+          <StopCircle className="size-4 mr-1.5" />
           {t("discover.stopAndShow")}
         </Button>
       </div>

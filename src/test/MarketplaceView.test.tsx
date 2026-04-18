@@ -603,6 +603,19 @@ describe("MarketplaceView", () => {
     expect(content?.className).toContain("max-w-[min(98vw,1520px)]");
     expect(content?.className).toContain("xl:w-[min(99vw,1680px)]");
     expect(content?.className).toContain("xl:max-w-[min(99vw,1680px)]");
+    expect(content?.className).toContain("!max-w-[min(98vw,1520px)]");
+  });
+
+  it("keeps the shared dialog shell from reintroducing a small desktop max-width cap", async () => {
+    renderView();
+
+    fireEvent.click(screen.getByRole("button", { name: "Import GitHub repo" }));
+
+    const dialog = await screen.findByRole("dialog");
+    const content = dialog.querySelector('[data-slot="dialog-content"]');
+
+    expect(content?.className).toContain("!max-w-[min(98vw,1520px)]");
+    expect(content?.className).not.toContain("sm:max-w-sm");
   });
 
   it("shows only the selected github preview skill description in the detail pane", async () => {

@@ -117,6 +117,8 @@ struct GitHubRepoFixture {
     raw_files: std::collections::HashMap<String, String>,
 }
 
+const GITHUB_PAT_SETTING_KEY: &str = "github_pat";
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum GitHubAccessDenialKind {
     RateLimited {
@@ -247,7 +249,8 @@ async fn preview_github_repo_import_impl(
     repo_url: &str,
 ) -> Result<GitHubRepoPreview, String> {
     let repo = resolve_repo_ref(repo_url).await?;
-    let candidates = fetch_repo_skill_candidates(&repo).await?;
+    let auth = github_direct_auth_from_settings(pool).await?;
+    let candidates = fetch_repo_skill_candidates(&repo, auth.as_deref()).await?;
     let skills = build_preview_skills(pool, &candidates).await?;
 
     if skills.is_empty() {
@@ -266,7 +269,8 @@ async fn import_github_repo_skills_impl(
     selections: Vec<GitHubSkillImportSelection>,
 ) -> Result<GitHubRepoImportResult, String> {
     let repo = resolve_repo_ref(repo_url).await?;
-    let candidates = fetch_repo_skill_candidates(&repo).await?;
+    let auth = github_direct_auth_from_settings(pool).await?;
+    let candidates = fetch_repo_skill_candidates(&repo, auth.as_deref()).await?;
     if candidates.is_empty() {
         return Err(
             "No importable skills found in this repository. Supported layouts are repo-root skill directories or a top-level skills/ directory."
@@ -381,7 +385,7 @@ async fn import_github_repo_skills_impl(
             }
         }
 
-        if let Err(error) = download_directory_recursive(&repo, &op.candidate.source_path, &target_dir).await
+        if let Err(error) = download_directory_recursive(&repo, &op.candidate.source_path, &target_dir, auth.as_deref()).await
         {
             cleanup_created_directories(&created_paths);
             if target_dir.exists() {
@@ -502,6 +506,7 @@ async fn resolve_repo_ref(repo_url: &str) -> Result<GitHubRepoRef, String> {
         GitHubFetchSurface::Api,
         |endpoint| github_endpoint_url(endpoint, GitHubFetchSurface::Api, &format!("/repos/{owner}/{repo}")),
         "Failed to inspect GitHub repository",
+        None,
     )
     .await?;
 
@@ -531,6 +536,13 @@ async fn resolve_repo_ref(repo_url: &str) -> Result<GitHubRepoRef, String> {
         branch,
         normalized_url: format!("https://github.com/{owner}/{repo}"),
     })
+}
+
+async fn github_direct_auth_from_settings(pool: &DbPool) -> Result<Option<String>, String> {
+    Ok(db::get_setting(pool, GITHUB_PAT_SETTING_KEY)
+        .await?
+        .map(|token| token.trim().to_string())
+        .filter(|token| !token.is_empty()))
 }
 
 fn github_client() -> Result<reqwest::Client, String> {
@@ -572,12 +584,16 @@ fn parse_github_url(url: &str) -> Result<(String, String), String> {
     Ok((owner.to_lowercase(), repo.to_lowercase()))
 }
 
-async fn fetch_repo_skill_candidates(repo: &GitHubRepoRef) -> Result<Vec<RemoteSkillCandidate>, String> {
-    fetch_repo_skill_candidates_with_fixture(repo, None).await
+async fn fetch_repo_skill_candidates(
+    repo: &GitHubRepoRef,
+    auth_token: Option<&str>,
+) -> Result<Vec<RemoteSkillCandidate>, String> {
+    fetch_repo_skill_candidates_with_fixture(repo, auth_token, None).await
 }
 
 async fn fetch_repo_skill_candidates_with_fixture(
     repo: &GitHubRepoRef,
+    auth_token: Option<&str>,
     fixture: Option<&GitHubRepoFixture>,
 ) -> Result<Vec<RemoteSkillCandidate>, String> {
     let client = github_client()?;
@@ -605,7 +621,7 @@ async fn fetch_repo_skill_candidates_with_fixture(
                 .cloned()
                 .ok_or_else(|| "Missing fixture root SKILL.md".to_string())?
         } else {
-            fetch_raw_text(&client, &raw_url).await?
+            fetch_raw_text(&client, &raw_url, auth_token).await?
         };
         let frontmatter = parse_frontmatter(&skill_raw)
             .ok_or_else(|| "Repository root SKILL.md is missing valid frontmatter.".to_string())?;
@@ -691,7 +707,7 @@ async fn fetch_repo_skill_candidates_with_fixture(
                     .cloned()
                     .ok_or_else(|| format!("Missing fixture file '{}'.", skill_md.path))?
             } else {
-                fetch_raw_text(&client, &raw_url).await?
+                fetch_raw_text(&client, &raw_url, auth_token).await?
             };
             let frontmatter = parse_frontmatter(&skill_raw)
                 .ok_or_else(|| format!("Skill '{}' is missing valid frontmatter.", entry.path))?;
@@ -719,12 +735,13 @@ async fn download_directory_recursive(
     repo: &GitHubRepoRef,
     source_path: &str,
     target_dir: &Path,
+    auth_token: Option<&str>,
 ) -> Result<(), String> {
     let client = github_client()?;
     std::fs::create_dir_all(target_dir)
         .map_err(|e| format!("Failed to create import target directory: {}", e))?;
 
-    download_directory_recursive_with_client(&client, repo, source_path, target_dir).await
+    download_directory_recursive_with_client(&client, repo, source_path, target_dir, auth_token).await
 }
 
 async fn download_directory_recursive_with_client(
@@ -732,6 +749,7 @@ async fn download_directory_recursive_with_client(
     repo: &GitHubRepoRef,
     source_path: &str,
     target_dir: &Path,
+    auth_token: Option<&str>,
 ) -> Result<(), String> {
     if source_path == "." {
         let contents = fetch_directory_contents(client, repo, "").await?;
@@ -748,7 +766,7 @@ async fn download_directory_recursive_with_client(
                 .ok_or_else(|| "Failed to determine imported file parent directory.".to_string())?;
             std::fs::create_dir_all(parent)
                 .map_err(|e| format!("Failed to create imported file parent directory: {}", e))?;
-            let bytes = fetch_raw_bytes(client, repo, &entry.path).await?;
+            let bytes = fetch_raw_bytes(client, repo, &entry.path, auth_token).await?;
             std::fs::write(&destination, &bytes)
                 .map_err(|e| format!("Failed to write imported file '{}': {}", destination.display(), e))?;
         }
@@ -778,6 +796,7 @@ async fn download_directory_recursive_with_client(
                     repo,
                     &entry.path,
                     &destination,
+                    auth_token,
                 ))
                 .await?;
             }
@@ -793,7 +812,7 @@ async fn download_directory_recursive_with_client(
                     .ok_or_else(|| "Failed to determine imported file parent directory.".to_string())?;
                 std::fs::create_dir_all(parent)
                     .map_err(|e| format!("Failed to create imported file parent directory: {}", e))?;
-                let bytes = fetch_raw_bytes(client, repo, &entry.path).await?;
+                let bytes = fetch_raw_bytes(client, repo, &entry.path, auth_token).await?;
                 std::fs::write(&destination, &bytes)
                     .map_err(|e| format!("Failed to write imported file '{}': {}", destination.display(), e))?;
             }
@@ -832,6 +851,7 @@ async fn fetch_directory_contents(
             github_endpoint_url(endpoint, GitHubFetchSurface::Api, &content_path)
         },
         "Failed to inspect GitHub repository contents",
+        None,
     )
     .await?;
 
@@ -851,7 +871,11 @@ async fn fetch_directory_contents(
         .map_err(|e| format!("Failed to decode GitHub repository contents: {}", e))
 }
 
-async fn fetch_raw_text(client: &reqwest::Client, url: &str) -> Result<String, String> {
+async fn fetch_raw_text(
+    client: &reqwest::Client,
+    url: &str,
+    auth_token: Option<&str>,
+) -> Result<String, String> {
     let response = send_github_request_with_fallback(
         client,
         GitHubFetchSurface::Raw,
@@ -863,6 +887,7 @@ async fn fetch_raw_text(client: &reqwest::Client, url: &str) -> Result<String, S
             }
         },
         "Failed to download skill metadata",
+        auth_token,
     )
     .await?;
 
@@ -938,12 +963,14 @@ async fn fetch_raw_bytes(
     client: &reqwest::Client,
     repo: &GitHubRepoRef,
     file_path: &str,
+    auth_token: Option<&str>,
 ) -> Result<Vec<u8>, String> {
     let response = send_github_request_with_fallback(
         client,
         GitHubFetchSurface::Raw,
         |endpoint| raw_file_url(endpoint, repo, file_path),
         &format!("Failed to download '{}'", file_path),
+        auth_token,
     )
     .await?;
 
@@ -959,6 +986,7 @@ async fn send_github_request_with_fallback<F>(
     surface: GitHubFetchSurface,
     build_url: F,
     failure_prefix: &str,
+    auth_token: Option<&str>,
 ) -> Result<reqwest::Response, String>
 where
     F: Fn(&GitHubMirrorEndpoint) -> String,
@@ -967,7 +995,13 @@ where
 
     for endpoint in GITHUB_MIRROR_ENDPOINTS {
         let url = build_url(endpoint);
-        match client.get(url).send().await {
+        let mut request = client.get(url);
+        if endpoint.label == "github" {
+            if let Some(token) = auth_token {
+                request = request.bearer_auth(token);
+            }
+        }
+        match request.send().await {
             Ok(response) => {
                 let status = response.status();
                 if matches!(
@@ -1405,7 +1439,7 @@ mod tests {
             branch: "main".to_string(),
             normalized_url: "https://github.com/dorukardahan/twitterapi-io-skill".to_string(),
         };
-        let candidates = fetch_repo_skill_candidates_with_fixture(&repo, Some(&root_repo_fixture()))
+        let candidates = fetch_repo_skill_candidates_with_fixture(&repo, None, Some(&root_repo_fixture()))
             .await
             .expect("candidates");
         let preview = GitHubRepoPreview {
@@ -1439,7 +1473,7 @@ mod tests {
             normalized_url: "https://github.com/anthropics/skills".to_string(),
         };
 
-        let candidates = fetch_repo_skill_candidates_with_fixture(&repo, Some(&fixture))
+        let candidates = fetch_repo_skill_candidates_with_fixture(&repo, None, Some(&fixture))
             .await
             .expect("candidates");
 
@@ -1612,7 +1646,7 @@ mod tests {
             branch: "main".to_string(),
             normalized_url: "https://github.com/anthropics/skills".to_string(),
         };
-        let candidates = fetch_repo_skill_candidates_with_fixture(&repo, Some(&multi_skill_fixture()))
+        let candidates = fetch_repo_skill_candidates_with_fixture(&repo, None, Some(&multi_skill_fixture()))
             .await
             .expect("candidates");
         let preview = GitHubRepoPreview {
@@ -1624,4 +1658,109 @@ mod tests {
 
         assert!(preview.skills.iter().any(|skill| skill.source_path.starts_with("skills/")));
     }
+
+    #[tokio::test]
+    async fn github_pat_setting_is_trimmed_and_empty_values_are_ignored() {
+        let pool = setup_test_db().await;
+
+        db::set_setting(&pool, GITHUB_PAT_SETTING_KEY, "  test-token  ")
+            .await
+            .expect("set token");
+        assert_eq!(
+            github_direct_auth_from_settings(&pool).await.expect("read token"),
+            Some("test-token".to_string())
+        );
+
+        db::set_setting(&pool, GITHUB_PAT_SETTING_KEY, "   ")
+            .await
+            .expect("clear token");
+        assert_eq!(
+            github_direct_auth_from_settings(&pool).await.expect("read empty"),
+            None
+        );
+    }
+
+    #[tokio::test]
+    async fn direct_github_request_uses_bearer_auth_only_for_github_endpoint() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+        use std::sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc, Mutex,
+        };
+
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let address = listener.local_addr().expect("addr");
+        let requests = Arc::new(Mutex::new(Vec::<String>::new()));
+        let accepted = Arc::new(AtomicUsize::new(0));
+        let requests_clone = Arc::clone(&requests);
+        let accepted_clone = Arc::clone(&accepted);
+
+        let server = std::thread::spawn(move || {
+            while accepted_clone.load(Ordering::SeqCst) < 2 {
+                let (mut stream, _) = listener.accept().expect("accept");
+                let mut buffer = [0_u8; 2048];
+                let bytes_read = stream.read(&mut buffer).expect("read");
+                let request_text = String::from_utf8_lossy(&buffer[..bytes_read]).to_string();
+                requests_clone.lock().expect("lock").push(request_text.clone());
+                accepted_clone.fetch_add(1, Ordering::SeqCst);
+                let response = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok";
+                stream.write_all(response.as_bytes()).expect("write");
+            }
+        });
+
+        let client = github_client().expect("client");
+        let direct_url = format!("http://{}/direct", address);
+        let mirror_url = format!("http://{}/mirror", address);
+
+        let direct_response = send_github_request_with_fallback(
+            &client,
+            GitHubFetchSurface::Api,
+            |endpoint| {
+                if endpoint.label == "github" {
+                    direct_url.clone()
+                } else {
+                    mirror_url.clone()
+                }
+            },
+            "direct request failed",
+            Some("direct-token"),
+        )
+        .await
+        .expect("direct response");
+        assert!(direct_response.status().is_success());
+
+        let mirror_response = send_github_request_with_fallback(
+            &client,
+            GitHubFetchSurface::Api,
+            |_| mirror_url.clone(),
+            "mirror request failed",
+            Some("direct-token"),
+        )
+        .await
+        .expect("mirror response");
+        assert!(mirror_response.status().is_success());
+
+        server.join().expect("server join");
+        let captured = requests.lock().expect("captured");
+        let direct_request = captured
+            .iter()
+            .find(|request| request.contains("GET /direct"))
+            .expect("captured direct request");
+        let mirror_request = captured
+            .iter()
+            .find(|request| request.contains("GET /mirror"))
+            .expect("captured mirror request");
+        assert!(
+            direct_request.contains("authorization: Bearer direct-token")
+                || direct_request.contains("Authorization: Bearer direct-token"),
+            "direct github request should include bearer auth"
+        );
+        assert!(
+            !mirror_request.contains("authorization: Bearer direct-token")
+                && !mirror_request.contains("Authorization: Bearer direct-token"),
+            "mirror request should not include bearer auth"
+        );
+    }
+
 }

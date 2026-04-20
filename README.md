@@ -1,18 +1,103 @@
 # skills-manage
 
-A cross-platform desktop app for managing AI coding agent skills across multiple platforms. Built with Tauri v2, React, and TypeScript.
+`skills-manage` is a Tauri desktop app for managing AI coding agent skills across multiple platforms from one place.
 
-> **Disclaimer**
-> `skills-manage` is an independent, unofficial desktop application for managing local AI agent skill directories and importing public skill metadata. It is not affiliated with, endorsed by, or sponsored by Anthropic, OpenAI, GitHub, MiniMax, or any other supported platform, publisher, or trademark owner. Product names are used only to describe compatibility and interoperability.
+`skills-manage` 是一个基于 Tauri 的桌面应用，用来在一个界面里统一管理多平台 AI coding agent skills。
 
-## Overview
+> **Disclaimer / 免责声明**
+>
+> `skills-manage` is an independent, unofficial desktop application for managing local skill directories and importing public skill metadata. It is not affiliated with, endorsed by, or sponsored by Anthropic, OpenAI, GitHub, MiniMax, or any other supported platform, publisher, or trademark owner.
+>
+> `skills-manage` 是一个独立的非官方桌面应用，用于管理本地 skill 目录并导入公开 skill 元数据。它与 Anthropic、OpenAI、GitHub、MiniMax 或其他受支持平台、发布方、商标所有者均无隶属、背书或赞助关系。
 
-**skills-manage** provides a unified interface to discover, organize, and install AI agent skills (markdown instruction files) across 28 built-in platforms. It follows the [Agent Skills](https://github.com/anthropics/agent-skills) open standard with a central canonical directory at `~/.agents/skills/`. Skills are installed to individual platforms via symlinks, so a single source of truth drives all your AI coding tools.
+## Overview / 项目简介
 
-## Supported Platforms
+`skills-manage` follows the [Agent Skills](https://github.com/anthropics/agent-skills) open pattern and uses `~/.agents/skills/` as the canonical central directory. Skills can then be installed to individual platforms through symlinks, so one source of truth can drive multiple AI coding tools.
 
-| Category | Platform | Skills Directory |
-|----------|----------|-----------------|
+`skills-manage` 遵循 [Agent Skills](https://github.com/anthropics/agent-skills) 的开放模式，使用 `~/.agents/skills/` 作为中央 canonical 目录，再通过符号链接把 skill 安装到各个平台，让同一份 skill 成为多个 AI coding 工具的单一事实来源。
+
+## Highlights / 核心能力
+
+- Central skill library plus per-platform installs and uninstall flows.  
+  中央技能库与按平台安装、卸载工作流。
+- Full skill detail view with Markdown preview, raw source view, and AI explanation generation.  
+  完整技能详情视图，支持 Markdown 预览、原始源码查看和 AI 解释生成。
+- Collections for organizing skills and batch-installing them to platforms.  
+  通过技能集合整理和批量安装 skills。
+- Discover scan for project-level skill libraries on local disks.  
+  支持扫描本地项目级 skill 库的 Discover 能力。
+- Marketplace browsing and GitHub repository import with authenticated requests and retry fallback.  
+  支持 marketplace 浏览，以及带鉴权请求和重试回退的 GitHub 仓库导入。
+- Fast search for large skill libraries with deferred queries, lazy indexing, and virtualization.  
+  通过延迟查询、懒加载索引和虚拟列表提升大规模 skill 库搜索体验。
+- Bilingual UI, Catppuccin themes, accent colors, onboarding, and responsive navigation.  
+  提供中英文界面、Catppuccin 主题、强调色、首次引导和响应式导航。
+
+## Screenshots / 项目截图
+
+### Central skills and platform installs / 中央技能库与平台安装
+
+![Central skills library view / 中央技能库视图](images/01.png)
+
+### Review installed skills on a specific platform / 查看特定平台的已安装技能
+
+![Platform skill view / 平台技能视图](images/06.png)
+
+### Discover local project skill libraries / 扫描本地项目技能库
+
+![Discover project skill libraries / 项目技能库发现页](images/03.png)
+
+### Browse marketplace publishers and skills / 浏览 marketplace 发布者与技能
+
+![Marketplace view / 技能市场视图](images/04.png)
+
+### Import skills from a GitHub repository / 从 GitHub 仓库导入技能
+
+![GitHub repository import wizard / GitHub 仓库导入向导](images/02.png)
+
+### Organize reusable collections / 管理可复用技能集合
+
+![Skill collections view / 技能集合视图](images/05.png)
+
+## Download / 下载
+
+- Latest release / 最新发布：<https://github.com/iamzhihuix/skills-manage/releases/latest>
+- Current prebuilt packages / 当前已提供的预编译安装包：Apple Silicon macOS (`.dmg` and `.app.zip`)
+- Other platforms / 其他平台：run from source for now / 当前请从源码运行
+
+### macOS Unsigned Build / macOS 未签名构建说明
+
+The current public macOS build is not notarized. If macOS shows a warning such as:
+
+当前公开发布的 macOS 安装包还没有 notarization。如果 macOS 提示：
+
+- `"skills-manage" is damaged and can't be opened`
+- `"skills-manage" cannot be opened because Apple could not verify it`
+
+the app is usually not actually corrupted; it is being blocked by Gatekeeper quarantine on an unsigned build.
+
+这通常不代表安装包真的损坏，而是未签名应用被 Gatekeeper 的 quarantine 机制拦截。
+
+After moving the app to `/Applications`, run:
+
+把应用移动到 `/Applications` 后，执行：
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/skills-manage.app"
+```
+
+Then launch the app again from Finder.
+
+然后回到 Finder 再次打开应用。
+
+If your app is stored somewhere else, replace the path with the actual `.app` path.
+
+如果你的应用不在 `/Applications`，把命令中的路径替换成实际 `.app` 路径即可。
+
+## Supported Platforms / 支持的平台
+
+| Category / 类别 | Platform / 平台 | Skills Directory / Skills 目录 |
+|----------------|-----------------|--------------------------------|
 | Coding | Claude Code | `~/.claude/skills/` |
 | Coding | Codex CLI | `~/.agents/skills/` |
 | Coding | Cursor | `~/.cursor/skills/` |
@@ -44,33 +129,25 @@ A cross-platform desktop app for managing AI coding agent skills across multiple
 
 Custom platforms can be added through Settings.
 
-## Features
+也可以在 Settings 中添加自定义平台。
 
-- **Platform Views** — Browse skills installed for each AI coding tool
-- **Central Skills** — Manage canonical skills in `~/.agents/skills/` with install/uninstall to any platform
-- **Skill Detail** — View skill content with full markdown preview
-- **Collections** — Create, edit, and delete skill collections; batch-install to platforms; export/import as JSON
-- **Settings** — Configure custom scan directories and custom platforms
-- **Discover** — Full-disk project-level skill scanner with dedicated Discover page, recursive scanning, configurable scan roots, import to central, stop scan, and cached results
-- **Catppuccin Themes** — 4 switchable flavors (Mocha, Macchiato, Frappé, Latte) with instant switching and persistence
-- **i18n** — Chinese and English language support with persistent preference
-- **Responsive Sidebar** — Collapsible navigation with platform grouping and SVG platform icons
-- **First-Visit Guidance** — Onboarding flow for new users
-- **Error Toasts** — User-friendly error notifications via sonner
+## Privacy & Security / 隐私与安全
 
-## Privacy & Security
+- Local-first storage: metadata, collections, scan results, settings, and cached AI explanations stay in `~/.skillsmanage/db.sqlite` or the local skill directories you manage.  
+  本地优先：元数据、集合、扫描结果、设置和 AI explanation 缓存都保存在 `~/.skillsmanage/db.sqlite` 或你自己管理的本地 skill 目录中。
+- No telemetry: the app does not include analytics, crash reporting, or usage tracking.  
+  无遥测：应用不包含分析、崩溃上报或使用追踪。
+- Network access is feature-driven: outbound requests only happen when you explicitly use marketplace sync/download, GitHub import, or AI explanation generation.  
+  网络访问由功能触发：只有在你显式使用 marketplace 同步/下载、GitHub 导入或 AI explanation 时才会发起外部请求。
+- Credentials are stored locally: GitHub PAT and AI API keys are kept in the local SQLite settings table and are not encrypted at rest by the app.  
+  凭据仅本地存储：GitHub PAT 和 AI API key 会保存在本地 SQLite settings 表中，应用本身不提供静态加密。
+- Never post real secrets in issues, pull requests, screenshots, or logs.  
+  不要在 issue、PR、截图或日志里公开真实密钥。
 
-- **Local-first** — Skill metadata, collections, scan results, app settings, and cached AI explanations are stored locally in `~/.skillsmanage/db.sqlite` or in the skill directories you manage.
-- **No telemetry** — The app does not include analytics, crash reporting, or usage tracking.
-- **Outbound network requests are opt-in by feature** — The app only contacts external services when you explicitly use marketplace sync/download, GitHub repository import, or AI explanation generation.
-- **Credential handling** — GitHub Personal Access Tokens and AI API keys, if configured, are stored locally in the SQLite settings table. They are not encrypted at rest by the app.
-- **AI explanation privacy** — Generating an AI explanation sends the selected skill content and prompt to the provider configured in Settings.
-- **Public issue hygiene** — Never post real tokens, private keys, or credential files in issues, pull requests, screenshots, or logs.
+## Tech Stack / 技术栈
 
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
+| Layer / 层 | Technology / 技术 |
+|------------|-------------------|
 | Desktop framework | Tauri v2 |
 | Frontend | React 19, TypeScript, Tailwind CSS 4 |
 | UI components | shadcn/ui, Lucide icons |
@@ -82,98 +159,90 @@ Custom platforms can be added through Settings.
 | Database | SQLite via sqlx (WAL mode) |
 | Routing | react-router-dom v7 |
 
-## Getting Started
+## Development / 开发
 
-### Prerequisites
+### Prerequisites / 前置依赖
 
 - [Node.js](https://nodejs.org/) (LTS)
 - [pnpm](https://pnpm.io/)
 - [Rust toolchain](https://rustup.rs/) (stable)
-- Tauri v2 system dependencies — see [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)
+- Tauri v2 system dependencies / Tauri v2 系统依赖：<https://v2.tauri.app/start/prerequisites/>
 
-### Install
+### Install Dependencies / 安装依赖
 
 ```bash
 pnpm install
 ```
 
-### Development
+### Run in Development / 启动开发环境
 
 ```bash
 pnpm tauri dev
 ```
 
-The Vite dev server runs on port **24200**.
+The Vite dev server runs on port `24200`.
 
-## Testing
+Vite 开发服务器默认使用 `24200` 端口。
 
-### Frontend (385 tests)
-
-```bash
-pnpm test          # Vitest + React Testing Library
-pnpm typecheck     # TypeScript type checking
-pnpm lint          # ESLint
-```
-
-### Rust backend (214 tests)
+### Validation / 验证命令
 
 ```bash
+pnpm test
+pnpm typecheck
+pnpm lint
 cd src-tauri && cargo test
 cd src-tauri && cargo clippy -- -D warnings
 ```
 
-## Project Structure
+## Project Structure / 项目结构
 
-```
+```text
 skills-manage/
 ├── src/                        # React frontend
-│   ├── pages/                  # Route views
-│   │   ├── PlatformView.tsx
-│   │   ├── CentralSkillsView.tsx
-│   │   ├── CollectionView.tsx
-│   │   ├── SkillDetail.tsx
-│   │   ├── DiscoverView.tsx
-│   │   └── SettingsView.tsx
 │   ├── components/             # UI components
-│   │   ├── layout/             # Sidebar, app shell
-│   │   ├── central/            # Central skills components
-│   │   ├── collection/         # Collection editor, picker
-│   │   ├── discover/           # Discover scan components
-│   │   ├── platform/           # Platform skill cards
-│   │   ├── settings/           # Settings components
-│   │   └── ui/                 # shadcn/ui primitives
-│   ├── stores/                 # Zustand state stores (including themeStore)
-│   ├── i18n/                   # i18n config + locale files (zh, en)
-│   ├── test/                   # Test files + setup
-│   └── types/                  # TypeScript type definitions
+│   ├── i18n/                   # Locale files and i18n setup
+│   ├── lib/                    # Frontend helpers
+│   ├── pages/                  # Route views
+│   ├── stores/                 # Zustand stores
+│   ├── test/                   # Vitest + RTL tests
+│   └── types/                  # Shared TypeScript types
 ├── src-tauri/                  # Rust backend
 │   └── src/
-│       ├── lib.rs              # Tauri app setup + plugin registration
+│       ├── commands/           # Tauri IPC handlers
 │       ├── db.rs               # SQLite schema, migrations, queries
-│       ├── main.rs             # Entry point
-│       └── commands/           # Tauri IPC command handlers
-│           ├── scanner.rs      # Skill file discovery
-│           ├── agents.rs       # Platform CRUD
-│           ├── linker.rs       # Symlink install/uninstall
-│           ├── skills.rs       # Skill queries + content reading
-│           ├── collections.rs  # Collection management
-│           ├── discover.rs     # Full-disk skill discovery scanner
-│           └── settings.rs     # Scan dirs + app settings
-└── public/                     # Static assets
+│       ├── lib.rs              # Tauri app setup
+│       └── main.rs             # Desktop entry point
+├── public/                     # Static assets
+├── CHANGELOG.md                # English changelog
+├── CHANGELOG.zh.md             # 中文更新日志
+└── release-notes/              # GitHub release notes
 ```
 
-## Database
+## Database / 数据库
 
-SQLite database stored at `~/.skillsmanage/db.sqlite` with WAL mode enabled. The schema is initialized automatically on first launch, including seeding all built-in platform entries.
+The SQLite database lives at `~/.skillsmanage/db.sqlite` and is initialized automatically on first launch.
 
-## Contributing
+SQLite 数据库位于 `~/.skillsmanage/db.sqlite`，首次启动时会自动初始化。
+
+## Changelog / 更新日志
+
+- English: [CHANGELOG.md](CHANGELOG.md)
+- 中文：[CHANGELOG.zh.md](CHANGELOG.zh.md)
+
+## Contributing / 参与贡献
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, validation commands, and pull request expectations.
 
-## Security
+开发环境、验证命令和 PR 约定见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+## Security / 安全报告
 
 See [SECURITY.md](SECURITY.md) for vulnerability reporting and data-handling notes.
 
-## License
+漏洞反馈和数据处理说明见 [SECURITY.md](SECURITY.md)。
+
+## License / 许可证
 
 This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE).
+
+本项目使用 Apache License 2.0，详见 [LICENSE](LICENSE)。

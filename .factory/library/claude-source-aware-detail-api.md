@@ -30,3 +30,10 @@ Backend contract added for the `claude-source-aware-platform-detail-api` feature
   - `canonical_path` is `null`
 
 Frontend follow-up: for duplicate Claude rows, call `get_skill_detail({ skillId, agentId: "claude-code", rowId })`, then load content from `read_file_by_path(detail.file_path)` so the selected row’s content/path stays source-aware.
+
+Current limitation observed during `claude-platform-ux` scrutiny:
+
+- AI explanation caching is still keyed only by logical `skill_id` + `lang`.
+  - Frontend calls `loadCachedExplanation`, `generateExplanation`, and `refreshExplanation` with `detailRequest.skillId` in `src/stores/skillDetailStore.ts`.
+  - Backend explanation storage and retrieval (`skill_explanations`, `get_skill_explanation`, `explain_skill_stream`, `refresh_skill_explanation`) also key by `skill_id`.
+  - Result: duplicate Claude source rows can still leak cached explanation text across `user` and `marketplace` copies unless explanation state adopts row-aware identity too.

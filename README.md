@@ -18,7 +18,7 @@
 - Claude Code can surface native skills and read-only marketplace plugin skills in one platform view.
 - Full skill detail view with Markdown preview, raw source view, and AI explanation generation.
 - Collections for organizing skills and batch-installing them to platforms.
-- Discover scan for project-level skill libraries on local disks.
+- Discover scan for project-level skill libraries, including an Obsidian sidebar category for vault skills (`.skills/`, `.agents/skills/`, `.claude/skills/`).
 - Marketplace browsing and GitHub repository import with authenticated requests and retry fallback.
 - Fast search for large skill libraries with deferred queries, lazy indexing, and virtualization.
 - Bilingual UI, Catppuccin themes, accent colors, onboarding, and responsive navigation.

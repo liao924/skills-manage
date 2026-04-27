@@ -1179,6 +1179,31 @@ mod tests {
     use super::*;
 
     static SCAN_CANCEL_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+    const CROSS_AREA_FIXTURE_ROOT: &str = "/tmp/skills-manage-val-cross-012";
+    const CROSS_AREA_FIXTURE_CENTRAL_DIR: &str = "/tmp/skills-manage-val-cross-012/central";
+    const CROSS_AREA_FIXTURE_CLAUDE_PLATFORM_DIR: &str =
+        "/tmp/skills-manage-val-cross-012/claude-platform-skills";
+    const CROSS_AREA_FIXTURE_CURSOR_PLATFORM_DIR: &str =
+        "/tmp/skills-manage-val-cross-012/cursor-platform-skills";
+    const CROSS_AREA_FIXTURE_PARENT_PATH: &str =
+        "/tmp/skills-manage-val-cross-012/Library/Mobile Documents/iCloud~md~obsidian/Documents";
+    const CROSS_AREA_FIXTURE_VAULT_PATH: &str =
+        "/tmp/skills-manage-val-cross-012/Library/Mobile Documents/iCloud~md~obsidian/Documents/make-money";
+    const CROSS_AREA_FIXTURE_VAULT_NAME: &str = "make-money";
+    const CROSS_AREA_FIXTURE_SKILL_DIR_NAME: &str = "money-researcher";
+    const CROSS_AREA_FIXTURE_SKILL_NAME: &str = "Money Researcher";
+    const CROSS_AREA_FIXTURE_SKILL_DESCRIPTION: &str = "Correlated fixture skill";
+    const CROSS_AREA_FIXTURE_SKILL_ID: &str = "obsidian__ef800504428ee0cc__money-researcher";
+    const CROSS_AREA_FIXTURE_SOURCE_DIR: &str =
+        "/tmp/skills-manage-val-cross-012/Library/Mobile Documents/iCloud~md~obsidian/Documents/make-money/.agents/skills/money-researcher";
+    const CROSS_AREA_FIXTURE_SOURCE_FILE: &str =
+        "/tmp/skills-manage-val-cross-012/Library/Mobile Documents/iCloud~md~obsidian/Documents/make-money/.agents/skills/money-researcher/SKILL.md";
+    const CROSS_AREA_FIXTURE_CENTRAL_TARGET: &str =
+        "/tmp/skills-manage-val-cross-012/central/money-researcher";
+    const CROSS_AREA_FIXTURE_SYMLINK_TARGET: &str =
+        "/tmp/skills-manage-val-cross-012/claude-platform-skills/money-researcher";
+    const CROSS_AREA_FIXTURE_COPY_TARGET: &str =
+        "/tmp/skills-manage-val-cross-012/cursor-platform-skills/money-researcher";
 
     #[test]
     fn test_default_scan_roots_returns_candidates() {
@@ -1312,6 +1337,24 @@ mod tests {
         let mut manifest = Vec::new();
         walk(root, root, &mut manifest);
         manifest
+    }
+
+    fn reset_cross_area_fixture_root(root: &Path) {
+        if let Ok(metadata) = std::fs::symlink_metadata(root) {
+            if metadata.is_dir() && !metadata.file_type().is_symlink() {
+                std::fs::remove_dir_all(root).unwrap();
+            } else {
+                std::fs::remove_file(root).unwrap();
+            }
+        }
+    }
+
+    struct CrossAreaFixtureCleanup(PathBuf);
+
+    impl Drop for CrossAreaFixtureCleanup {
+        fn drop(&mut self) {
+            reset_cross_area_fixture_root(&self.0);
+        }
     }
 
     #[tokio::test]
@@ -1951,30 +1994,37 @@ mod tests {
 
     #[tokio::test]
     async fn test_obsidian_correlated_fixture_scan_import_cache_and_vault_manifest() {
-        let tmp = tempfile::TempDir::new().unwrap();
+        let fixture_root = PathBuf::from(CROSS_AREA_FIXTURE_ROOT);
+        reset_cross_area_fixture_root(&fixture_root);
+        let _cleanup = CrossAreaFixtureCleanup(fixture_root.clone());
         let pool = setup_test_db().await;
-        let central_dir = tmp.path().join("central");
-        let claude_install_dir = tmp.path().join("claude-platform-skills");
+        let central_dir = PathBuf::from(CROSS_AREA_FIXTURE_CENTRAL_DIR);
+        let claude_install_dir = PathBuf::from(CROSS_AREA_FIXTURE_CLAUDE_PLATFORM_DIR);
+        let cursor_install_dir = PathBuf::from(CROSS_AREA_FIXTURE_CURSOR_PLATFORM_DIR);
         std::fs::create_dir_all(&central_dir).unwrap();
         sqlx::query("UPDATE agents SET global_skills_dir = ? WHERE id = 'claude-code'")
             .bind(claude_install_dir.to_string_lossy().to_string())
             .execute(&pool)
             .await
             .unwrap();
+        sqlx::query("UPDATE agents SET global_skills_dir = ? WHERE id = 'cursor'")
+            .bind(cursor_install_dir.to_string_lossy().to_string())
+            .execute(&pool)
+            .await
+            .unwrap();
 
-        let obsidian_parent = tmp
-            .path()
-            .join("Library")
-            .join("Mobile Documents")
-            .join("iCloud~md~obsidian")
-            .join("Documents");
-        let vault_dir = obsidian_parent.join("make-money");
+        let obsidian_parent = PathBuf::from(CROSS_AREA_FIXTURE_PARENT_PATH);
+        let vault_dir = PathBuf::from(CROSS_AREA_FIXTURE_VAULT_PATH);
         std::fs::create_dir_all(vault_dir.join(".obsidian")).unwrap();
         let source_skill_dir = create_skill(
             &vault_dir.join(".agents/skills"),
-            "money-researcher",
-            "Money Researcher",
-            "Correlated fixture skill",
+            CROSS_AREA_FIXTURE_SKILL_DIR_NAME,
+            CROSS_AREA_FIXTURE_SKILL_NAME,
+            CROSS_AREA_FIXTURE_SKILL_DESCRIPTION,
+        );
+        assert_eq!(
+            source_skill_dir,
+            PathBuf::from(CROSS_AREA_FIXTURE_SOURCE_DIR)
         );
         std::fs::write(
             source_skill_dir.join("notes.md"),
@@ -1987,7 +2037,9 @@ mod tests {
         {
             std::os::unix::fs::symlink(
                 &source_skill_dir,
-                vault_dir.join(".claude/skills/money-researcher"),
+                vault_dir
+                    .join(".claude/skills")
+                    .join(CROSS_AREA_FIXTURE_SKILL_DIR_NAME),
             )
             .unwrap();
             std::os::unix::fs::symlink(
@@ -2014,7 +2066,7 @@ mod tests {
         .unwrap();
         let roots = build_scan_roots(&pool, vec![]).await.unwrap();
         assert_eq!(roots.len(), 1);
-        assert_eq!(roots[0].path, obsidian_parent.to_string_lossy());
+        assert_eq!(roots[0].path, CROSS_AREA_FIXTURE_PARENT_PATH);
         assert!(roots[0].enabled);
         assert!(roots[0].exists);
 
@@ -2029,27 +2081,22 @@ mod tests {
         let vault = result
             .projects
             .iter()
-            .find(|project| project.project_path == vault_dir.to_string_lossy())
+            .find(|project| project.project_path == CROSS_AREA_FIXTURE_VAULT_PATH)
             .expect("Obsidian vault project should be present");
-        assert_eq!(vault.project_name, "make-money");
+        assert_eq!(vault.project_name, CROSS_AREA_FIXTURE_VAULT_NAME);
         assert_eq!(vault.skills.len(), 1);
         let fixture_skill = &vault.skills[0];
-        assert_eq!(fixture_skill.name, "Money Researcher");
+        assert_eq!(fixture_skill.id, CROSS_AREA_FIXTURE_SKILL_ID);
+        assert_eq!(fixture_skill.name, CROSS_AREA_FIXTURE_SKILL_NAME);
         assert_eq!(
             fixture_skill.description.as_deref(),
-            Some("Correlated fixture skill")
+            Some(CROSS_AREA_FIXTURE_SKILL_DESCRIPTION)
         );
         assert_eq!(fixture_skill.platform_id, OBSIDIAN_PLATFORM_ID);
         assert_eq!(fixture_skill.platform_name, OBSIDIAN_PLATFORM_NAME);
-        assert_eq!(fixture_skill.dir_path, source_skill_dir.to_string_lossy());
-        assert_eq!(
-            fixture_skill.file_path,
-            source_skill_dir.join("SKILL.md").to_string_lossy()
-        );
-        assert!(
-            fixture_skill.id.starts_with("obsidian__"),
-            "fixture skill id should be path-qualified for cache/UI correlation"
-        );
+        assert_eq!(fixture_skill.project_path, CROSS_AREA_FIXTURE_VAULT_PATH);
+        assert_eq!(fixture_skill.dir_path, CROSS_AREA_FIXTURE_SOURCE_DIR);
+        assert_eq!(fixture_skill.file_path, CROSS_AREA_FIXTURE_SOURCE_FILE);
 
         let ordinary = result
             .projects
@@ -2067,17 +2114,24 @@ mod tests {
             .await
             .unwrap()
             .expect("Obsidian fixture should be persisted");
-        assert_eq!(persisted.project_path, vault_dir.to_string_lossy());
-        assert_eq!(persisted.dir_path, source_skill_dir.to_string_lossy());
+        assert_eq!(persisted.id, CROSS_AREA_FIXTURE_SKILL_ID);
+        assert_eq!(persisted.project_path, CROSS_AREA_FIXTURE_VAULT_PATH);
+        assert_eq!(persisted.file_path, CROSS_AREA_FIXTURE_SOURCE_FILE);
+        assert_eq!(persisted.dir_path, CROSS_AREA_FIXTURE_SOURCE_DIR);
 
         let cached = get_discovered_skills_impl(&pool, &central_dir)
             .await
             .unwrap();
         let cached_vault = cached
             .iter()
-            .find(|project| project.project_path == vault_dir.to_string_lossy())
+            .find(|project| project.project_path == CROSS_AREA_FIXTURE_VAULT_PATH)
             .expect("cached Obsidian vault should reload by project path");
-        assert_eq!(cached_vault.skills[0].id, fixture_skill.id);
+        assert_eq!(cached_vault.project_name, CROSS_AREA_FIXTURE_VAULT_NAME);
+        assert_eq!(cached_vault.skills[0].id, CROSS_AREA_FIXTURE_SKILL_ID);
+        assert_eq!(
+            cached_vault.skills[0].file_path,
+            CROSS_AREA_FIXTURE_SOURCE_FILE
+        );
         assert!(!cached_vault.skills[0].is_already_central);
 
         let platform_result = import_discovered_skill_to_platform_from_pool(
@@ -2088,23 +2142,50 @@ mod tests {
         )
         .await
         .unwrap();
-        assert_eq!(platform_result.skill_id, "money-researcher");
-        let platform_target = claude_install_dir.join("money-researcher");
+        assert_eq!(platform_result.skill_id, CROSS_AREA_FIXTURE_SKILL_DIR_NAME);
+        let platform_target = PathBuf::from(CROSS_AREA_FIXTURE_SYMLINK_TARGET);
         assert!(std::fs::symlink_metadata(&platform_target)
             .unwrap()
             .file_type()
             .is_symlink());
-        let platform_install = db::get_skill_installations(&pool, "money-researcher")
-            .await
-            .unwrap()
-            .into_iter()
-            .find(|installation| installation.agent_id == "claude-code")
-            .expect("platform install row should be recorded for the same fixture skill");
+        let platform_install =
+            db::get_skill_installations(&pool, CROSS_AREA_FIXTURE_SKILL_DIR_NAME)
+                .await
+                .unwrap()
+                .into_iter()
+                .find(|installation| installation.agent_id == "claude-code")
+                .expect("platform install row should be recorded for the same fixture skill");
         assert_eq!(platform_install.link_type, "symlink");
         assert_eq!(
             platform_install.symlink_target.as_deref(),
-            Some(&*source_skill_dir.to_string_lossy())
+            Some(CROSS_AREA_FIXTURE_SOURCE_DIR)
         );
+
+        let copy_result = import_discovered_skill_to_platform_from_pool(
+            &pool,
+            &fixture_skill.id,
+            "cursor",
+            Some("copy"),
+        )
+        .await
+        .unwrap();
+        assert_eq!(copy_result.skill_id, CROSS_AREA_FIXTURE_SKILL_DIR_NAME);
+        let copy_target = PathBuf::from(CROSS_AREA_FIXTURE_COPY_TARGET);
+        let copy_meta = std::fs::symlink_metadata(&copy_target).unwrap();
+        assert!(copy_meta.is_dir());
+        assert!(!copy_meta.file_type().is_symlink());
+        assert_eq!(
+            std::fs::read_to_string(copy_target.join("notes.md")).unwrap(),
+            "vault-owned fixture content must remain unchanged"
+        );
+        let copy_install = db::get_skill_installations(&pool, CROSS_AREA_FIXTURE_SKILL_DIR_NAME)
+            .await
+            .unwrap()
+            .into_iter()
+            .find(|installation| installation.agent_id == "cursor")
+            .expect("copy install row should be recorded for the same fixture skill");
+        assert_eq!(copy_install.link_type, "copy");
+        assert_eq!(copy_install.installed_path, CROSS_AREA_FIXTURE_COPY_TARGET);
         assert!(
             db::get_discovered_skill_by_id(&pool, &fixture_skill.id)
                 .await
@@ -2122,8 +2203,8 @@ mod tests {
             import_discovered_skill_to_central_impl(&pool, &fixture_skill.id, &central_dir)
                 .await
                 .unwrap();
-        assert_eq!(import_result.skill_id, "money-researcher");
-        let central_target = central_dir.join("money-researcher");
+        assert_eq!(import_result.skill_id, CROSS_AREA_FIXTURE_SKILL_DIR_NAME);
+        let central_target = PathBuf::from(CROSS_AREA_FIXTURE_CENTRAL_TARGET);
         assert!(central_target.join("SKILL.md").exists());
         assert_eq!(
             std::fs::read_to_string(central_target.join("notes.md")).unwrap(),
@@ -2155,8 +2236,9 @@ mod tests {
         let rescanned_vault = rescan
             .projects
             .iter()
-            .find(|project| project.project_path == vault_dir.to_string_lossy())
+            .find(|project| project.project_path == CROSS_AREA_FIXTURE_VAULT_PATH)
             .expect("vault should be rediscovered after central import");
+        assert_eq!(rescanned_vault.skills[0].id, CROSS_AREA_FIXTURE_SKILL_ID);
         assert!(
             rescanned_vault.skills[0].is_already_central,
             "rescan should correlate the same fixture with its central target"

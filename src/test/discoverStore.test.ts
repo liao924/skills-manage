@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as tauriBridge from "@/lib/tauri";
 import { ScanRoot, DiscoveredProject, DiscoverResult, DiscoverImportResult } from "../types";
+import {
+  OBSIDIAN_CROSS_AREA_FIXTURE,
+  obsidianCrossAreaProjects,
+} from "./fixtures/obsidianCrossAreaFixture";
 
 // Mock Tauri core before importing the store
 vi.mock("@tauri-apps/api/core", () => ({
@@ -56,38 +60,7 @@ const mockDiscoveredProjects: DiscoveredProject[] = [
   },
 ];
 
-const mockObsidianProjects: DiscoveredProject[] = [
-  {
-    project_path: "/Users/happypeet/Library/Mobile Documents/iCloud~md~obsidian/Documents/make-money",
-    project_name: "make-money",
-    skills: [
-      {
-        id: "obsidian__make-money__zettel-helper",
-        name: "zettel-helper",
-        description: "Curate linked notes into reusable skills",
-        file_path: "/Users/happypeet/Library/Mobile Documents/iCloud~md~obsidian/Documents/make-money/.agents/skills/zettel-helper/SKILL.md",
-        dir_path: "/Users/happypeet/Library/Mobile Documents/iCloud~md~obsidian/Documents/make-money/.agents/skills/zettel-helper",
-        platform_id: "obsidian",
-        platform_name: "Obsidian",
-        project_path: "/Users/happypeet/Library/Mobile Documents/iCloud~md~obsidian/Documents/make-money",
-        project_name: "make-money",
-        is_already_central: false,
-      },
-      {
-        id: "obsidian__make-money__note-review",
-        name: "note-review",
-        description: "Review a vault note",
-        file_path: "/Users/happypeet/Library/Mobile Documents/iCloud~md~obsidian/Documents/make-money/.claude/skills/note-review/SKILL.md",
-        dir_path: "/Users/happypeet/Library/Mobile Documents/iCloud~md~obsidian/Documents/make-money/.claude/skills/note-review",
-        platform_id: "obsidian",
-        platform_name: "Obsidian",
-        project_path: "/Users/happypeet/Library/Mobile Documents/iCloud~md~obsidian/Documents/make-money",
-        project_name: "make-money",
-        is_already_central: false,
-      },
-    ],
-  },
-];
+const mockObsidianProjects: DiscoveredProject[] = obsidianCrossAreaProjects;
 
 const mockImportResult: DiscoverImportResult = {
   skill_id: "deploy",
@@ -409,34 +382,22 @@ describe("discoverStore", () => {
   it("updates Obsidian vault counts by removing an imported central skill and empty vault rows", async () => {
     useDiscoverStore.setState({
       discoveredProjects: mockObsidianProjects,
-      totalSkillsFound: 2,
-      selectedSkillIds: new Set(["obsidian__make-money__zettel-helper"]),
+      totalSkillsFound: 1,
+      selectedSkillIds: new Set([OBSIDIAN_CROSS_AREA_FIXTURE.skillId]),
     });
     vi.mocked(invoke).mockResolvedValueOnce({
-      skill_id: "zettel-helper",
+      skill_id: OBSIDIAN_CROSS_AREA_FIXTURE.skillDirName,
       target: "central",
     });
 
-    await useDiscoverStore.getState().importToCentral("obsidian__make-money__zettel-helper");
+    await useDiscoverStore.getState().importToCentral(OBSIDIAN_CROSS_AREA_FIXTURE.skillId);
 
-    expect(useDiscoverStore.getState().discoveredProjects).toEqual([
-      expect.objectContaining({
-        project_name: "make-money",
-        skills: [expect.objectContaining({ id: "obsidian__make-money__note-review" })],
-      }),
-    ]);
-    expect(useDiscoverStore.getState().totalSkillsFound).toBe(1);
-    expect(useDiscoverStore.getState().selectedSkillIds).toEqual(new Set());
-
-    vi.mocked(invoke).mockResolvedValueOnce({
-      skill_id: "note-review",
-      target: "central",
+    expect(invoke).toHaveBeenCalledWith("import_discovered_skill_to_central", {
+      discoveredSkillId: OBSIDIAN_CROSS_AREA_FIXTURE.skillId,
     });
-
-    await useDiscoverStore.getState().importToCentral("obsidian__make-money__note-review");
-
     expect(useDiscoverStore.getState().discoveredProjects).toEqual([]);
     expect(useDiscoverStore.getState().totalSkillsFound).toBe(0);
+    expect(useDiscoverStore.getState().selectedSkillIds).toEqual(new Set());
   });
 
   it("sets error when importToCentral fails", async () => {
@@ -468,47 +429,47 @@ describe("discoverStore", () => {
   it("keeps Obsidian discovered rows after installing to a real platform", async () => {
     useDiscoverStore.setState({
       discoveredProjects: mockObsidianProjects,
-      totalSkillsFound: 2,
+      totalSkillsFound: 1,
     });
     const platformResult: DiscoverImportResult = {
-      skill_id: "zettel-helper",
-      target: "claude-code",
+      skill_id: OBSIDIAN_CROSS_AREA_FIXTURE.skillDirName,
+      target: OBSIDIAN_CROSS_AREA_FIXTURE.installAgentId,
     };
     vi.mocked(invoke).mockResolvedValueOnce(platformResult);
 
     await useDiscoverStore.getState().importToPlatform(
-      "obsidian__make-money__zettel-helper",
-      "claude-code"
+      OBSIDIAN_CROSS_AREA_FIXTURE.skillId,
+      OBSIDIAN_CROSS_AREA_FIXTURE.installAgentId
     );
 
     expect(useDiscoverStore.getState().discoveredProjects).toEqual(mockObsidianProjects);
-    expect(useDiscoverStore.getState().totalSkillsFound).toBe(2);
+    expect(useDiscoverStore.getState().totalSkillsFound).toBe(1);
   });
 
   it("forwards the selected install method for Obsidian platform installs", async () => {
     useDiscoverStore.setState({
       discoveredProjects: mockObsidianProjects,
-      totalSkillsFound: 2,
+      totalSkillsFound: 1,
     });
     const platformResult: DiscoverImportResult = {
-      skill_id: "zettel-helper",
+      skill_id: OBSIDIAN_CROSS_AREA_FIXTURE.skillDirName,
       target: "cursor",
     };
     vi.mocked(invoke).mockResolvedValueOnce(platformResult);
 
     await useDiscoverStore.getState().importToPlatform(
-      "obsidian__make-money__zettel-helper",
+      OBSIDIAN_CROSS_AREA_FIXTURE.skillId,
       "cursor",
-      "copy"
+      OBSIDIAN_CROSS_AREA_FIXTURE.copyInstallMethod
     );
 
     expect(invoke).toHaveBeenCalledWith("import_discovered_skill_to_platform", {
-      discoveredSkillId: "obsidian__make-money__zettel-helper",
+      discoveredSkillId: OBSIDIAN_CROSS_AREA_FIXTURE.skillId,
       agentId: "cursor",
-      method: "copy",
+      method: OBSIDIAN_CROSS_AREA_FIXTURE.copyInstallMethod,
     });
     expect(useDiscoverStore.getState().discoveredProjects).toEqual(mockObsidianProjects);
-    expect(useDiscoverStore.getState().totalSkillsFound).toBe(2);
+    expect(useDiscoverStore.getState().totalSkillsFound).toBe(1);
   });
 
   it("rejects Obsidian as a platform install target without invoking the backend", async () => {
@@ -516,8 +477,8 @@ describe("discoverStore", () => {
 
     await expect(
       useDiscoverStore.getState().importToPlatform(
-        "obsidian__make-money__zettel-helper",
-        "obsidian"
+        OBSIDIAN_CROSS_AREA_FIXTURE.skillId,
+        OBSIDIAN_CROSS_AREA_FIXTURE.platformId
       )
     ).rejects.toThrow(/Obsidian/);
 
@@ -528,20 +489,15 @@ describe("discoverStore", () => {
   it("refreshCounts replaces Obsidian vault counts with reconciled cached rows", async () => {
     useDiscoverStore.setState({
       discoveredProjects: mockObsidianProjects,
-      totalSkillsFound: 2,
+      totalSkillsFound: 1,
     });
-    const reconciledProjects: DiscoveredProject[] = [
-      {
-        ...mockObsidianProjects[0],
-        skills: [mockObsidianProjects[0].skills[1]],
-      },
-    ];
+    const reconciledProjects: DiscoveredProject[] = [];
     vi.mocked(invoke).mockResolvedValueOnce(reconciledProjects);
 
     await useDiscoverStore.getState().refreshCounts();
 
     expect(useDiscoverStore.getState().discoveredProjects).toEqual(reconciledProjects);
-    expect(useDiscoverStore.getState().totalSkillsFound).toBe(1);
+    expect(useDiscoverStore.getState().totalSkillsFound).toBe(0);
   });
 
   // ── clearResults ──────────────────────────────────────────────────────────

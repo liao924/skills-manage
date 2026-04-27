@@ -5,6 +5,11 @@ import { DiscoverView } from "../pages/DiscoverView";
 import { DiscoveredProject, DiscoveredSkill, AgentWithStatus } from "../types";
 import { consumeScrollPosition } from "../lib/scrollRestoration";
 import * as scrollRestoration from "../lib/scrollRestoration";
+import {
+  OBSIDIAN_CROSS_AREA_FIXTURE,
+  obsidianCrossAreaProjects,
+  obsidianCrossAreaSkill,
+} from "./fixtures/obsidianCrossAreaFixture";
 
 const mockInstallDialogProps = vi.hoisted(() => vi.fn());
 
@@ -257,27 +262,9 @@ const mockAgents: AgentWithStatus[] = [
   },
 ];
 
-const obsidianVaultPath = "/Users/happypeet/Library/Mobile Documents/iCloud~md~obsidian/Documents/make-money";
-const obsidianSkill: DiscoveredSkill = {
-  id: "obsidian__make-money__zettel-helper",
-  name: "zettel-helper",
-  description: "Curate linked notes into reusable skills",
-  file_path: `${obsidianVaultPath}/.agents/skills/zettel-helper/SKILL.md`,
-  dir_path: `${obsidianVaultPath}/.agents/skills/zettel-helper`,
-  platform_id: "obsidian",
-  platform_name: "Obsidian",
-  project_path: obsidianVaultPath,
-  project_name: "make-money",
-  is_already_central: false,
-};
-
-const obsidianProjects: DiscoveredProject[] = [
-  {
-    project_path: obsidianVaultPath,
-    project_name: "make-money",
-    skills: [obsidianSkill],
-  },
-];
+const obsidianVaultPath = OBSIDIAN_CROSS_AREA_FIXTURE.vaultPath;
+const obsidianSkill: DiscoveredSkill = obsidianCrossAreaSkill;
+const obsidianProjects: DiscoveredProject[] = obsidianCrossAreaProjects;
 
 const mockLoadDiscoveredSkills = vi.fn();
 const mockLoadScanRoots = vi.fn();
@@ -601,23 +588,47 @@ describe("DiscoverView", () => {
 
     renderDiscoverView(`/discover/${encodeURIComponent(obsidianVaultPath)}`);
 
-    expect(screen.getAllByText("make-money").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(OBSIDIAN_CROSS_AREA_FIXTURE.vaultName).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText(obsidianVaultPath)).toBeInTheDocument();
-    expect(screen.getByText("zettel-helper")).toBeInTheDocument();
-    expect(screen.getByText("Curate linked notes into reusable skills")).toBeInTheDocument();
-    expect(screen.getByText("Obsidian")).toBeInTheDocument();
+    expect(screen.getByText(OBSIDIAN_CROSS_AREA_FIXTURE.skillName)).toBeInTheDocument();
+    expect(screen.getByText(OBSIDIAN_CROSS_AREA_FIXTURE.skillDescription)).toBeInTheDocument();
+    expect(screen.getByText(OBSIDIAN_CROSS_AREA_FIXTURE.platformName)).toBeInTheDocument();
     expect(screen.getByTitle("Install to Central")).toBeInTheDocument();
     expect(screen.getByTitle("Install to Platform")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /view details for zettel-helper/i }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: new RegExp(`view details for ${OBSIDIAN_CROSS_AREA_FIXTURE.skillName}`, "i"),
+      })
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId("skill-detail-drawer")).toBeInTheDocument();
     });
     expect(screen.getByText(`drawer-file:${obsidianSkill.file_path}`)).toBeInTheDocument();
-    expect(screen.getByText("drawer-source:Obsidian")).toBeInTheDocument();
-    expect(screen.getByText("drawer-project:make-money")).toBeInTheDocument();
+    expect(screen.getByText(`drawer-source:${OBSIDIAN_CROSS_AREA_FIXTURE.platformName}`)).toBeInTheDocument();
+    expect(screen.getByText(`drawer-project:${OBSIDIAN_CROSS_AREA_FIXTURE.vaultName}`)).toBeInTheDocument();
     expect(screen.getByText(`drawer-dir:${obsidianSkill.dir_path}`)).toBeInTheDocument();
+  });
+
+  it("correlates the canonical Obsidian fixture values in the Discover UI paper trail", () => {
+    mockUseDiscoverStore.mockImplementation((selector) =>
+      selector(
+        buildDiscoverStoreState({
+          discoveredProjects: obsidianProjects,
+          totalSkillsFound: 1,
+        })
+      )
+    );
+
+    renderDiscoverView(`/discover/${encodeURIComponent(obsidianVaultPath)}`);
+
+    expect(screen.getByText(OBSIDIAN_CROSS_AREA_FIXTURE.skillName)).toBeInTheDocument();
+    expect(screen.getByText(OBSIDIAN_CROSS_AREA_FIXTURE.skillDescription)).toBeInTheDocument();
+    expect(obsidianSkill.id).toBe(OBSIDIAN_CROSS_AREA_FIXTURE.skillId);
+    expect(obsidianSkill.project_path).toBe(OBSIDIAN_CROSS_AREA_FIXTURE.vaultPath);
+    expect(obsidianSkill.dir_path).toBe(OBSIDIAN_CROSS_AREA_FIXTURE.sourceDirPath);
+    expect(obsidianSkill.file_path).toBe(OBSIDIAN_CROSS_AREA_FIXTURE.sourceFilePath);
   });
 
   it("excludes Obsidian from the install dialog targets for discovered vault skills", async () => {
@@ -638,14 +649,19 @@ describe("DiscoverView", () => {
       expect(screen.getByTestId("install-dialog")).toBeInTheDocument();
     });
     const lastProps = mockInstallDialogProps.mock.calls.at(-1)?.[0];
-    expect(lastProps?.agents.map((agent: { id: string }) => agent.id)).toEqual(["claude-code"]);
+    expect(lastProps?.agents.map((agent: { id: string }) => agent.id)).toEqual([
+      OBSIDIAN_CROSS_AREA_FIXTURE.installAgentId,
+    ]);
     const dialog = screen.getByTestId("install-dialog");
-    expect(within(dialog).getByText("Claude Code")).toBeInTheDocument();
-    expect(within(dialog).queryByText("Obsidian")).not.toBeInTheDocument();
+    expect(within(dialog).getByText(OBSIDIAN_CROSS_AREA_FIXTURE.installAgentName)).toBeInTheDocument();
+    expect(within(dialog).queryByText(OBSIDIAN_CROSS_AREA_FIXTURE.platformName)).not.toBeInTheDocument();
   });
 
   it("passes the selected install method through when installing an Obsidian vault skill", async () => {
-    mockImportToPlatform.mockResolvedValueOnce({ skill_id: "zettel-helper", target: "claude-code" });
+    mockImportToPlatform.mockResolvedValueOnce({
+      skill_id: OBSIDIAN_CROSS_AREA_FIXTURE.skillDirName,
+      target: OBSIDIAN_CROSS_AREA_FIXTURE.installAgentId,
+    });
     mockRefreshDiscoverCounts.mockResolvedValueOnce(undefined);
     mockRefreshPlatformCounts.mockResolvedValueOnce(undefined);
     mockUseDiscoverStore.mockImplementation((selector) =>
@@ -667,13 +683,15 @@ describe("DiscoverView", () => {
     const lastProps = mockInstallDialogProps.mock.calls.at(-1)?.[0];
     expect(lastProps).toBeTruthy();
 
-    await lastProps.onInstall(obsidianSkill.id, ["claude-code"], "copy");
+    await lastProps.onInstall(obsidianSkill.id, [
+      OBSIDIAN_CROSS_AREA_FIXTURE.installAgentId,
+    ], OBSIDIAN_CROSS_AREA_FIXTURE.copyInstallMethod);
 
     await waitFor(() => {
       expect(mockImportToPlatform).toHaveBeenCalledWith(
         obsidianSkill.id,
-        "claude-code",
-        "copy"
+        OBSIDIAN_CROSS_AREA_FIXTURE.installAgentId,
+        OBSIDIAN_CROSS_AREA_FIXTURE.copyInstallMethod
       );
     });
   });
@@ -737,6 +755,32 @@ describe("DiscoverView", () => {
     await waitFor(() => {
       expect(mockImportToCentral).toHaveBeenCalledWith("claude-code__my-app__deploy");
     });
+  });
+
+  it("imports the correlated Obsidian fixture to Central through the card action", async () => {
+    mockImportToCentral.mockResolvedValueOnce({
+      skill_id: OBSIDIAN_CROSS_AREA_FIXTURE.skillDirName,
+      target: "central",
+    });
+    mockRefreshDiscoverCounts.mockResolvedValueOnce(undefined);
+    mockRefreshPlatformCounts.mockResolvedValueOnce(undefined);
+    mockUseDiscoverStore.mockImplementation((selector) =>
+      selector(
+        buildDiscoverStoreState({
+          discoveredProjects: obsidianProjects,
+          totalSkillsFound: 1,
+        })
+      )
+    );
+
+    renderDiscoverView(`/discover/${encodeURIComponent(obsidianVaultPath)}`);
+
+    fireEvent.click(screen.getByTitle("Install to Central"));
+
+    await waitFor(() => {
+      expect(mockImportToCentral).toHaveBeenCalledWith(OBSIDIAN_CROSS_AREA_FIXTURE.skillId);
+    });
+    expect(obsidianSkill.dir_path).toBe(OBSIDIAN_CROSS_AREA_FIXTURE.sourceDirPath);
   });
 
   // ── Search behaviour (DISC-SEARCH-001 / 002) ──────────────────────────────

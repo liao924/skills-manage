@@ -4,6 +4,10 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 import { Sidebar } from "../components/layout/Sidebar";
 import { usePlatformStore } from "../stores/platformStore";
 import type { DiscoveredProject, DiscoveredSkill } from "../types";
+import {
+  OBSIDIAN_CROSS_AREA_FIXTURE,
+  obsidianCrossAreaProjects,
+} from "./fixtures/obsidianCrossAreaFixture";
 
 // Mock the platformStore to avoid real Tauri invocations
 vi.mock("../stores/platformStore", () => ({
@@ -428,6 +432,27 @@ describe("Sidebar", () => {
     expect(within(zetaButton).getByText("1")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /App/ })).not.toBeInTheDocument();
     expect(container.innerHTML).not.toContain("/platform/obsidian");
+  });
+
+  it("uses the correlated make-money fixture for the Obsidian sidebar row and route", () => {
+    renderSidebar("/central", {
+      discoverProjects: obsidianCrossAreaProjects,
+    });
+
+    const vaultButton = screen.getByRole("button", {
+      name: new RegExp(OBSIDIAN_CROSS_AREA_FIXTURE.vaultName),
+    });
+    expect(vaultButton).toHaveAttribute(
+      "title",
+      expect.stringContaining(OBSIDIAN_CROSS_AREA_FIXTURE.vaultPath)
+    );
+    expect(within(vaultButton).getByText("1")).toBeInTheDocument();
+
+    fireEvent.click(vaultButton);
+
+    expect(screen.getByTestId("location-path")).toHaveTextContent(
+      `/discover/${encodeURIComponent(OBSIDIAN_CROSS_AREA_FIXTURE.vaultPath)}`
+    );
   });
 
   it("hides the Obsidian category when no vault projects contain Obsidian skills", () => {

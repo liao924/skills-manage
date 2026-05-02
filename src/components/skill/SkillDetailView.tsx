@@ -406,6 +406,8 @@ export interface SkillDetailViewProps {
   scrollContainerRef?: Ref<HTMLDivElement>;
   /** Optional id applied to the ViewHeader h1 for shell-level aria-labelledby. */
   titleId?: string;
+  /** Optional hook for parent lists that need fresh install/status summaries. */
+  onInstallationsChange?: () => void | Promise<void>;
 }
 
 export function SkillDetailView({
@@ -419,6 +421,7 @@ export function SkillDetailView({
   onRequestClose: _onRequestClose,
   scrollContainerRef,
   titleId,
+  onInstallationsChange,
 }: SkillDetailViewProps) {
   const { t, i18n } = useTranslation();
   const isFileMode = !skillId && !!filePath;
@@ -653,6 +656,7 @@ export function SkillDetailView({
         refreshCounts(),
         refreshInstallations(skillId),
       ]);
+      await onInstallationsChange?.();
     } catch (err) {
       toast.error(
         isInstalled

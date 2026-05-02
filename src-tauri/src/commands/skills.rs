@@ -9,6 +9,7 @@ use crate::db::{self, Collection, DbPool, SkillForAgent};
 use crate::AppState;
 
 use super::linker::uninstall_skill_from_agent_impl;
+use super::scanner::{scan_skill_root, ScanDirectoryOptions};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -93,6 +94,51 @@ pub struct DeleteCentralSkillOptions {
 pub struct DeleteCentralSkillResult {
     pub skill_id: String,
     pub removed_canonical_path: String,
+    pub uninstalled_agents: Vec<String>,
+    pub skipped_read_only_agents: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CentralSkillBundle {
+    pub name: String,
+    pub relative_path: String,
+    pub path: String,
+    pub is_symlink: bool,
+    pub skill_count: usize,
+    pub linked_agent_count: usize,
+    pub read_only_agent_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CentralSkillBundleDeletePreview {
+    pub bundle: CentralSkillBundle,
+    pub skills: Vec<SkillWithLinks>,
+    pub affected_agents: Vec<String>,
+    pub skipped_read_only_agents: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CentralSkillBundleDetail {
+    pub bundle: CentralSkillBundle,
+    pub skills: Vec<SkillWithLinks>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteCentralSkillBundleOptions {
+    pub cascade_uninstall: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteCentralSkillBundleResult {
+    pub relative_path: String,
+    pub removed_bundle_path: String,
+    pub removed_kind: String,
+    pub removed_skill_ids: Vec<String>,
     pub uninstalled_agents: Vec<String>,
     pub skipped_read_only_agents: Vec<String>,
 }
@@ -233,6 +279,189 @@ fn remove_central_skill_dir(target: &Path) -> Result<(), String> {
         Err(format!(
             "Canonical path '{}' is not a removable skill directory",
             target.display()
+        ))
+    }
+}
+
+#[derive(Debug, Clone)]
+struct CentralBundleTarget {
+    relative_path: String,
+    entry_path: PathBuf,
+    delete_path: PathBuf,
+    content_root: Option<PathBuf>,
+    is_symlink: bool,
+}
+
+impl CentralBundleTarget {
+    fn removed_kind(&self) -> &'static str {
+        if self.is_symlink {
+            "symlink"
+        } else {
+            "directory"
+        }
+    }
+}
+
+fn normalize_central_bundle_relative_path(relative_path: &str) -> Result<PathBuf, String> {
+    let trimmed = relative_path.trim();
+    if trimmed.is_empty() {
+        return Err("Invalid Central bundle path".to_string());
+    }
+
+    let input = Path::new(trimmed);
+    if input.is_absolute() {
+        return Err("Invalid Central bundle path".to_string());
+    }
+
+    let mut normalized = PathBuf::new();
+    for component in input.components() {
+        match component {
+            std::path::Component::Normal(part) => normalized.push(part),
+            _ => return Err("Invalid Central bundle path".to_string()),
+        }
+    }
+
+    if normalized.as_os_str().is_empty() {
+        return Err("Invalid Central bundle path".to_string());
+    }
+
+    Ok(normalized)
+}
+
+async fn central_root_path(pool: &DbPool) -> Result<PathBuf, String> {
+    let central = db::get_agent_by_id(pool, "central")
+        .await?
+        .ok_or_else(|| "Central agent not found in database".to_string())?;
+
+    PathBuf::from(&central.global_skills_dir)
+        .canonicalize()
+        .map_err(|e| format!("Failed to resolve Central Skills root: {}", e))
+}
+
+fn validate_central_bundle_target(
+    relative_path: &str,
+    central_root: &Path,
+) -> Result<CentralBundleTarget, String> {
+    let normalized = normalize_central_bundle_relative_path(relative_path)?;
+    let entry_path = central_root.join(&normalized);
+    let metadata = std::fs::symlink_metadata(&entry_path).map_err(|e| {
+        format!(
+            "Failed to read Central bundle path '{}': {}",
+            entry_path.display(),
+            e
+        )
+    })?;
+
+    let relative_path = normalized.to_string_lossy().into_owned();
+
+    if metadata.file_type().is_symlink() {
+        let parent = entry_path
+            .parent()
+            .ok_or_else(|| "Central bundle path has no parent directory".to_string())?
+            .canonicalize()
+            .map_err(|e| {
+                format!(
+                    "Failed to resolve Central bundle parent '{}': {}",
+                    entry_path.display(),
+                    e
+                )
+            })?;
+        let file_name = entry_path
+            .file_name()
+            .ok_or_else(|| "Central bundle path has no directory name".to_string())?;
+        ensure_under_central_root(&parent.join(file_name), central_root)?;
+
+        return Ok(CentralBundleTarget {
+            relative_path,
+            entry_path: entry_path.clone(),
+            delete_path: entry_path,
+            content_root: std::fs::canonicalize(central_root.join(&normalized)).ok(),
+            is_symlink: true,
+        });
+    }
+
+    if !metadata.is_dir() {
+        return Err(format!(
+            "Central bundle path '{}' is not a directory or symlink",
+            entry_path.display()
+        ));
+    }
+
+    let resolved = entry_path.canonicalize().map_err(|e| {
+        format!(
+            "Failed to resolve Central bundle path '{}': {}",
+            entry_path.display(),
+            e
+        )
+    })?;
+    ensure_under_central_root(&resolved, central_root)?;
+
+    Ok(CentralBundleTarget {
+        relative_path,
+        entry_path,
+        delete_path: resolved.clone(),
+        content_root: Some(resolved),
+        is_symlink: false,
+    })
+}
+
+fn skill_directory_path_buf(skill: &db::Skill) -> PathBuf {
+    skill
+        .canonical_path
+        .as_deref()
+        .map(PathBuf::from)
+        .or_else(|| Path::new(&skill.file_path).parent().map(Path::to_path_buf))
+        .unwrap_or_else(|| PathBuf::from(&skill.file_path))
+}
+
+fn skill_is_under_bundle(skill: &db::Skill, target: &CentralBundleTarget) -> bool {
+    let skill_dir = skill_directory_path_buf(skill);
+    if skill_dir != target.entry_path && skill_dir.starts_with(&target.entry_path) {
+        return true;
+    }
+    if skill_dir != target.delete_path && skill_dir.starts_with(&target.delete_path) {
+        return true;
+    }
+
+    matches!(
+        (skill_dir.canonicalize(), target.content_root.as_ref()),
+        (Ok(resolved_skill), Some(content_root))
+            if resolved_skill != *content_root && resolved_skill.starts_with(content_root)
+    )
+}
+
+async fn central_skills_in_bundle(
+    pool: &DbPool,
+    target: &CentralBundleTarget,
+) -> Result<Vec<db::Skill>, String> {
+    let mut skills = db::get_central_skills(pool)
+        .await?
+        .into_iter()
+        .filter(|skill| skill_is_under_bundle(skill, target))
+        .collect::<Vec<_>>();
+    skills.sort_by(|a, b| a.id.cmp(&b.id));
+    Ok(skills)
+}
+
+fn remove_central_bundle_target(target: &CentralBundleTarget) -> Result<(), String> {
+    let metadata = std::fs::symlink_metadata(&target.delete_path).map_err(|e| {
+        format!(
+            "Failed to read Central bundle path '{}': {}",
+            target.delete_path.display(),
+            e
+        )
+    })?;
+
+    if metadata.file_type().is_symlink() {
+        std::fs::remove_file(&target.delete_path)
+            .map_err(|e| format!("Failed to remove Central bundle symlink: {}", e))
+    } else if metadata.is_dir() {
+        std::fs::remove_dir_all(&target.delete_path)
+            .map_err(|e| format!("Failed to remove Central bundle directory: {}", e))
+    } else {
+        Err(format!(
+            "Central bundle path '{}' is not removable",
+            target.delete_path.display()
         ))
     }
 }
@@ -573,6 +802,102 @@ pub async fn get_skills_by_agent(
     get_skills_by_agent_impl(&state.db, &agent_id).await
 }
 
+async fn skill_with_links(pool: &DbPool, skill: db::Skill) -> Result<SkillWithLinks, String> {
+    let installations = db::get_skill_installations(pool, &skill.id).await?;
+    let linked_agents: Vec<String> = installations.into_iter().map(|i| i.agent_id).collect();
+    let read_only_agents = read_only_agent_ids_for_skill(pool, &skill.id, skill.is_central).await?;
+    let (created_at, updated_at) = skill_filesystem_timestamps(&skill);
+
+    Ok(SkillWithLinks {
+        id: skill.id,
+        name: skill.name,
+        description: skill.description,
+        file_path: skill.file_path,
+        canonical_path: skill.canonical_path,
+        is_central: skill.is_central,
+        source: skill.source,
+        scanned_at: skill.scanned_at,
+        created_at,
+        updated_at,
+        linked_agents,
+        read_only_agents,
+    })
+}
+
+fn scan_count_for_bundle(target: &CentralBundleTarget) -> usize {
+    scan_skill_root(&target.entry_path, true, ScanDirectoryOptions::nested()).len()
+}
+
+async fn central_skill_bundle_from_target(
+    pool: &DbPool,
+    target: &CentralBundleTarget,
+    skills: &[db::Skill],
+    scanned_skill_count: usize,
+) -> Result<CentralSkillBundle, String> {
+    let mut linked_agents = BTreeSet::new();
+    let mut read_only_agents = BTreeSet::new();
+
+    for skill in skills {
+        for installation in db::get_skill_installations(pool, &skill.id).await? {
+            linked_agents.insert(installation.agent_id);
+        }
+        for agent_id in read_only_agent_ids_for_skill(pool, &skill.id, skill.is_central).await? {
+            read_only_agents.insert(agent_id);
+        }
+    }
+
+    let name = Path::new(&target.relative_path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(&target.relative_path)
+        .to_string();
+
+    Ok(CentralSkillBundle {
+        name,
+        relative_path: target.relative_path.clone(),
+        path: target.delete_path.to_string_lossy().into_owned(),
+        is_symlink: target.is_symlink,
+        skill_count: scanned_skill_count.max(skills.len()),
+        linked_agent_count: linked_agents.len(),
+        read_only_agent_count: read_only_agents.len(),
+    })
+}
+
+async fn central_bundle_preview_for_target(
+    pool: &DbPool,
+    target: CentralBundleTarget,
+) -> Result<CentralSkillBundleDeletePreview, String> {
+    let skills = central_skills_in_bundle(pool, &target).await?;
+    let scanned_skill_count = scan_count_for_bundle(&target);
+
+    if skills.is_empty() && scanned_skill_count == 0 {
+        return Err(format!(
+            "No Central Skills found under bundle '{}'",
+            target.relative_path
+        ));
+    }
+
+    let bundle =
+        central_skill_bundle_from_target(pool, &target, &skills, scanned_skill_count).await?;
+    let mut affected_agents = BTreeSet::new();
+    let mut skipped_read_only_agents = BTreeSet::new();
+    let mut skills_with_links = Vec::with_capacity(skills.len());
+
+    for skill in skills {
+        let linked = skill_with_links(pool, skill).await?;
+        affected_agents.extend(linked.linked_agents.iter().cloned());
+        skipped_read_only_agents.extend(linked.read_only_agents.iter().cloned());
+        skills_with_links.push(linked);
+    }
+
+    Ok(CentralSkillBundleDeletePreview {
+        bundle,
+        skills: skills_with_links,
+        affected_agents: affected_agents.into_iter().collect(),
+        skipped_read_only_agents: skipped_read_only_agents.into_iter().collect(),
+    })
+}
+
 /// Tauri command: return all Central Skills with per-platform link status.
 ///
 /// For each skill in the central skills directory, the response includes a
@@ -584,29 +909,191 @@ pub async fn get_central_skills(state: State<'_, AppState>) -> Result<Vec<SkillW
 
     let mut result = Vec::with_capacity(skills.len());
     for skill in skills {
-        let installations = db::get_skill_installations(&state.db, &skill.id).await?;
-        let linked_agents: Vec<String> = installations.into_iter().map(|i| i.agent_id).collect();
-        let read_only_agents =
-            read_only_agent_ids_for_skill(&state.db, &skill.id, skill.is_central).await?;
-        let (created_at, updated_at) = skill_filesystem_timestamps(&skill);
-
-        result.push(SkillWithLinks {
-            id: skill.id,
-            name: skill.name,
-            description: skill.description,
-            file_path: skill.file_path,
-            canonical_path: skill.canonical_path,
-            is_central: skill.is_central,
-            source: skill.source,
-            scanned_at: skill.scanned_at,
-            created_at,
-            updated_at,
-            linked_agents,
-            read_only_agents,
-        });
+        result.push(skill_with_links(&state.db, skill).await?);
     }
 
     Ok(result)
+}
+
+pub async fn get_central_skill_bundles_impl(
+    pool: &DbPool,
+) -> Result<Vec<CentralSkillBundle>, String> {
+    let central_root = central_root_path(pool).await?;
+    let entries = std::fs::read_dir(&central_root).map_err(|e| {
+        format!(
+            "Failed to read Central Skills root '{}': {}",
+            central_root.display(),
+            e
+        )
+    })?;
+
+    let mut bundles = Vec::new();
+    for entry in entries.flatten() {
+        let entry_path = entry.path();
+        let Ok(metadata) = std::fs::symlink_metadata(&entry_path) else {
+            continue;
+        };
+        if !metadata.file_type().is_symlink() && !metadata.is_dir() {
+            continue;
+        }
+        if entry_path.join("SKILL.md").exists() {
+            continue;
+        }
+
+        let relative_path = entry.file_name().to_string_lossy().into_owned();
+        let Ok(target) = validate_central_bundle_target(&relative_path, &central_root) else {
+            continue;
+        };
+        let scanned_skill_count = scan_count_for_bundle(&target);
+        let skills = central_skills_in_bundle(pool, &target).await?;
+        if scanned_skill_count == 0 && skills.is_empty() {
+            continue;
+        }
+
+        bundles.push(
+            central_skill_bundle_from_target(pool, &target, &skills, scanned_skill_count).await?,
+        );
+    }
+
+    bundles.sort_by(|a, b| a.relative_path.cmp(&b.relative_path));
+    Ok(bundles)
+}
+
+#[tauri::command]
+pub async fn get_central_skill_bundles(
+    state: State<'_, AppState>,
+) -> Result<Vec<CentralSkillBundle>, String> {
+    get_central_skill_bundles_impl(&state.db).await
+}
+
+pub async fn get_central_skill_bundle_detail_impl(
+    pool: &DbPool,
+    relative_path: &str,
+) -> Result<CentralSkillBundleDetail, String> {
+    let central_root = central_root_path(pool).await?;
+    let target = validate_central_bundle_target(relative_path, &central_root)?;
+    let skills = central_skills_in_bundle(pool, &target).await?;
+    let scanned_skill_count = scan_count_for_bundle(&target);
+
+    if skills.is_empty() && scanned_skill_count == 0 {
+        return Err(format!(
+            "No Central Skills found under bundle '{}'",
+            target.relative_path
+        ));
+    }
+
+    let bundle =
+        central_skill_bundle_from_target(pool, &target, &skills, scanned_skill_count).await?;
+    let mut skills_with_links = Vec::with_capacity(skills.len());
+    for skill in skills {
+        skills_with_links.push(skill_with_links(pool, skill).await?);
+    }
+
+    Ok(CentralSkillBundleDetail {
+        bundle,
+        skills: skills_with_links,
+    })
+}
+
+#[tauri::command]
+pub async fn get_central_skill_bundle_detail(
+    state: State<'_, AppState>,
+    relative_path: String,
+) -> Result<CentralSkillBundleDetail, String> {
+    get_central_skill_bundle_detail_impl(&state.db, &relative_path).await
+}
+
+pub async fn preview_delete_central_skill_bundle_impl(
+    pool: &DbPool,
+    relative_path: &str,
+) -> Result<CentralSkillBundleDeletePreview, String> {
+    let central_root = central_root_path(pool).await?;
+    let target = validate_central_bundle_target(relative_path, &central_root)?;
+    central_bundle_preview_for_target(pool, target).await
+}
+
+#[tauri::command]
+pub async fn preview_delete_central_skill_bundle(
+    state: State<'_, AppState>,
+    relative_path: String,
+) -> Result<CentralSkillBundleDeletePreview, String> {
+    preview_delete_central_skill_bundle_impl(&state.db, &relative_path).await
+}
+
+pub async fn delete_central_skill_bundle_impl(
+    pool: &DbPool,
+    relative_path: &str,
+    options: DeleteCentralSkillBundleOptions,
+) -> Result<DeleteCentralSkillBundleResult, String> {
+    let central_root = central_root_path(pool).await?;
+    let target = validate_central_bundle_target(relative_path, &central_root)?;
+    let preview = central_bundle_preview_for_target(pool, target.clone()).await?;
+    let skills = central_skills_in_bundle(pool, &target).await?;
+
+    if !options.cascade_uninstall && !preview.affected_agents.is_empty() {
+        return Err(format!(
+            "Bundle skills are installed on agents: {}",
+            preview.affected_agents.join(", ")
+        ));
+    }
+
+    let mut uninstalled_agents = BTreeSet::new();
+    if options.cascade_uninstall {
+        for skill in &skills {
+            let central_skill_dir = skill_directory_path_buf(skill);
+            let installations = db::get_skill_installations(pool, &skill.id).await?;
+            for installation in installations {
+                if is_shared_central_installation(
+                    pool,
+                    &installation,
+                    &central_root,
+                    &central_skill_dir,
+                )
+                .await?
+                {
+                    continue;
+                }
+
+                uninstall_skill_from_agent_impl(pool, &skill.id, &installation.agent_id).await?;
+                uninstalled_agents.insert(installation.agent_id);
+            }
+        }
+    }
+
+    remove_central_bundle_target(&target)?;
+
+    let mut removed_skill_ids = Vec::with_capacity(skills.len());
+    for skill in &skills {
+        db::delete_central_skill_records(pool, &skill.id, &skill.name).await?;
+        removed_skill_ids.push(skill.id.clone());
+    }
+
+    let removed_kind = target.removed_kind().to_string();
+
+    Ok(DeleteCentralSkillBundleResult {
+        relative_path: target.relative_path,
+        removed_bundle_path: target.delete_path.to_string_lossy().into_owned(),
+        removed_kind,
+        removed_skill_ids,
+        uninstalled_agents: uninstalled_agents.into_iter().collect(),
+        skipped_read_only_agents: preview.skipped_read_only_agents,
+    })
+}
+
+#[tauri::command]
+pub async fn delete_central_skill_bundle(
+    state: State<'_, AppState>,
+    relative_path: String,
+    options: Option<DeleteCentralSkillBundleOptions>,
+) -> Result<DeleteCentralSkillBundleResult, String> {
+    delete_central_skill_bundle_impl(
+        &state.db,
+        &relative_path,
+        options.unwrap_or(DeleteCentralSkillBundleOptions {
+            cascade_uninstall: false,
+        }),
+    )
+    .await
 }
 
 pub async fn delete_central_skill_impl(
@@ -899,6 +1386,35 @@ mod tests {
             id: skill_id.to_string(),
             name: skill_id.to_string(),
             description: Some("Test skill".to_string()),
+            file_path: skill_md_path.to_string_lossy().into_owned(),
+            canonical_path: Some(skill_dir.to_string_lossy().into_owned()),
+            is_central: true,
+            source: Some("native".to_string()),
+            content: None,
+            scanned_at: Utc::now().to_rfc3339(),
+        };
+        db::upsert_skill(pool, &skill).await.unwrap();
+        skill
+    }
+
+    async fn create_nested_central_skill(
+        pool: &SqlitePool,
+        bundle_dir: &Path,
+        skill_id: &str,
+    ) -> Skill {
+        let skill_dir = bundle_dir.join(skill_id);
+        fs::create_dir_all(&skill_dir).unwrap();
+        let skill_md_path = skill_dir.join("SKILL.md");
+        fs::write(
+            &skill_md_path,
+            format!("---\nname: {skill_id}\ndescription: Nested test skill\n---\n\n# {skill_id}\n"),
+        )
+        .unwrap();
+
+        let skill = Skill {
+            id: skill_id.to_string(),
+            name: skill_id.to_string(),
+            description: Some("Nested test skill".to_string()),
             file_path: skill_md_path.to_string_lossy().into_owned(),
             canonical_path: Some(skill_dir.to_string_lossy().into_owned()),
             is_central: true,
@@ -1338,6 +1854,266 @@ mod tests {
             .await
             .unwrap()
             .is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_preview_delete_central_skill_bundle_reports_nested_skills_and_agents() {
+        let tmp = TempDir::new().unwrap();
+        let central_dir = tmp.path().join("central");
+        let claude_dir = tmp.path().join("claude");
+        let bundle_dir = central_dir.join("Superpowers");
+        fs::create_dir_all(&central_dir).unwrap();
+        fs::create_dir_all(&claude_dir).unwrap();
+        let pool = setup_test_db().await;
+        set_agent_dir(&pool, "central", &central_dir).await;
+        set_agent_dir(&pool, "claude-code", &claude_dir).await;
+        create_nested_central_skill(&pool, &bundle_dir, "using-superpowers").await;
+        create_nested_central_skill(&pool, &bundle_dir, "writing-plans").await;
+
+        let install_path = claude_dir.join("using-superpowers");
+        create_symlink(&bundle_dir.join("using-superpowers"), &install_path).unwrap();
+        db::upsert_skill_installation(
+            &pool,
+            &SkillInstallation {
+                skill_id: "using-superpowers".to_string(),
+                agent_id: "claude-code".to_string(),
+                installed_path: install_path.to_string_lossy().into_owned(),
+                link_type: "symlink".to_string(),
+                symlink_target: Some(
+                    bundle_dir
+                        .join("using-superpowers")
+                        .to_string_lossy()
+                        .into_owned(),
+                ),
+                created_at: Utc::now().to_rfc3339(),
+            },
+        )
+        .await
+        .unwrap();
+
+        let preview = preview_delete_central_skill_bundle_impl(&pool, "Superpowers")
+            .await
+            .unwrap();
+
+        assert_eq!(preview.bundle.relative_path, "Superpowers");
+        assert!(!preview.bundle.is_symlink);
+        assert_eq!(preview.bundle.skill_count, 2);
+        assert_eq!(preview.affected_agents, vec!["claude-code".to_string()]);
+        assert_eq!(
+            preview
+                .skills
+                .iter()
+                .map(|skill| skill.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["using-superpowers", "writing-plans"]
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_central_skill_bundle_detail_returns_skills_and_links() {
+        let tmp = TempDir::new().unwrap();
+        let central_dir = tmp.path().join("central");
+        let cursor_dir = tmp.path().join("cursor");
+        let bundle_dir = central_dir.join("Superpowers");
+        fs::create_dir_all(&central_dir).unwrap();
+        fs::create_dir_all(&cursor_dir).unwrap();
+        let pool = setup_test_db().await;
+        set_agent_dir(&pool, "central", &central_dir).await;
+        set_agent_dir(&pool, "cursor", &cursor_dir).await;
+        create_nested_central_skill(&pool, &bundle_dir, "using-superpowers").await;
+        create_nested_central_skill(&pool, &bundle_dir, "writing-plans").await;
+
+        let install_path = cursor_dir.join("using-superpowers");
+        create_symlink(&bundle_dir.join("using-superpowers"), &install_path).unwrap();
+        db::upsert_skill_installation(
+            &pool,
+            &SkillInstallation {
+                skill_id: "using-superpowers".to_string(),
+                agent_id: "cursor".to_string(),
+                installed_path: install_path.to_string_lossy().into_owned(),
+                link_type: "symlink".to_string(),
+                symlink_target: Some(
+                    bundle_dir
+                        .join("using-superpowers")
+                        .to_string_lossy()
+                        .into_owned(),
+                ),
+                created_at: Utc::now().to_rfc3339(),
+            },
+        )
+        .await
+        .unwrap();
+
+        let detail = get_central_skill_bundle_detail_impl(&pool, "Superpowers")
+            .await
+            .unwrap();
+
+        assert_eq!(detail.bundle.relative_path, "Superpowers");
+        assert_eq!(detail.bundle.skill_count, 2);
+        assert_eq!(detail.bundle.linked_agent_count, 1);
+        assert_eq!(
+            detail
+                .skills
+                .iter()
+                .map(|skill| skill.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["using-superpowers", "writing-plans"]
+        );
+        assert_eq!(detail.skills[0].linked_agents, vec!["cursor".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn test_get_central_skill_bundle_detail_rejects_unsafe_paths() {
+        let tmp = TempDir::new().unwrap();
+        let central_dir = tmp.path().join("central");
+        fs::create_dir_all(&central_dir).unwrap();
+        let pool = setup_test_db().await;
+        set_agent_dir(&pool, "central", &central_dir).await;
+
+        let err = get_central_skill_bundle_detail_impl(&pool, "../Superpowers")
+            .await
+            .unwrap_err();
+
+        assert!(err.contains("Invalid Central bundle path"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_central_skill_bundle_removes_local_dir_records_and_platform_links() {
+        let tmp = TempDir::new().unwrap();
+        let central_dir = tmp.path().join("central");
+        let claude_dir = tmp.path().join("claude");
+        let bundle_dir = central_dir.join("Superpowers");
+        fs::create_dir_all(&central_dir).unwrap();
+        fs::create_dir_all(&claude_dir).unwrap();
+        let pool = setup_test_db().await;
+        set_agent_dir(&pool, "central", &central_dir).await;
+        set_agent_dir(&pool, "claude-code", &claude_dir).await;
+        create_nested_central_skill(&pool, &bundle_dir, "using-superpowers").await;
+        create_nested_central_skill(&pool, &bundle_dir, "writing-plans").await;
+
+        let install_path = claude_dir.join("using-superpowers");
+        create_symlink(&bundle_dir.join("using-superpowers"), &install_path).unwrap();
+        db::upsert_skill_installation(
+            &pool,
+            &SkillInstallation {
+                skill_id: "using-superpowers".to_string(),
+                agent_id: "claude-code".to_string(),
+                installed_path: install_path.to_string_lossy().into_owned(),
+                link_type: "symlink".to_string(),
+                symlink_target: Some(
+                    bundle_dir
+                        .join("using-superpowers")
+                        .to_string_lossy()
+                        .into_owned(),
+                ),
+                created_at: Utc::now().to_rfc3339(),
+            },
+        )
+        .await
+        .unwrap();
+
+        let result = delete_central_skill_bundle_impl(
+            &pool,
+            "Superpowers",
+            DeleteCentralSkillBundleOptions {
+                cascade_uninstall: true,
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(result.relative_path, "Superpowers");
+        assert_eq!(result.removed_kind, "directory");
+        assert_eq!(
+            result.removed_skill_ids,
+            vec!["using-superpowers".to_string(), "writing-plans".to_string()]
+        );
+        assert_eq!(result.uninstalled_agents, vec!["claude-code".to_string()]);
+        assert!(!bundle_dir.exists());
+        assert!(!install_path.exists());
+        assert!(db::get_skill_by_id(&pool, "using-superpowers")
+            .await
+            .unwrap()
+            .is_none());
+        assert!(db::get_skill_by_id(&pool, "writing-plans")
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn test_delete_central_skill_bundle_removes_symlink_but_keeps_target() {
+        let tmp = TempDir::new().unwrap();
+        let central_dir = tmp.path().join("central");
+        let real_bundle_dir = tmp.path().join("real-superpowers");
+        let central_bundle_link = central_dir.join("Superpowers");
+        fs::create_dir_all(&central_dir).unwrap();
+        fs::create_dir_all(&real_bundle_dir).unwrap();
+        let pool = setup_test_db().await;
+        set_agent_dir(&pool, "central", &central_dir).await;
+        create_nested_central_skill(&pool, &central_bundle_link, "using-superpowers").await;
+        fs::remove_dir_all(&central_bundle_link).unwrap();
+        create_nested_central_skill(&pool, &real_bundle_dir, "using-superpowers").await;
+        create_symlink(&real_bundle_dir, &central_bundle_link).unwrap();
+
+        let mut skill = db::get_skill_by_id(&pool, "using-superpowers")
+            .await
+            .unwrap()
+            .unwrap();
+        skill.file_path = central_bundle_link
+            .join("using-superpowers/SKILL.md")
+            .to_string_lossy()
+            .into_owned();
+        skill.canonical_path = Some(
+            central_bundle_link
+                .join("using-superpowers")
+                .to_string_lossy()
+                .into_owned(),
+        );
+        db::upsert_skill(&pool, &skill).await.unwrap();
+
+        let result = delete_central_skill_bundle_impl(
+            &pool,
+            "Superpowers",
+            DeleteCentralSkillBundleOptions {
+                cascade_uninstall: true,
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(result.removed_kind, "symlink");
+        assert!(std::fs::symlink_metadata(&central_bundle_link).is_err());
+        assert!(real_bundle_dir.join("using-superpowers/SKILL.md").exists());
+        assert!(db::get_skill_by_id(&pool, "using-superpowers")
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn test_delete_central_skill_bundle_rejects_unsafe_paths() {
+        let tmp = TempDir::new().unwrap();
+        let central_dir = tmp.path().join("central");
+        fs::create_dir_all(&central_dir).unwrap();
+        let pool = setup_test_db().await;
+        set_agent_dir(&pool, "central", &central_dir).await;
+
+        let err = preview_delete_central_skill_bundle_impl(&pool, "../Superpowers")
+            .await
+            .unwrap_err();
+        assert!(err.contains("Invalid Central bundle path"));
+
+        let err = delete_central_skill_bundle_impl(
+            &pool,
+            "",
+            DeleteCentralSkillBundleOptions {
+                cascade_uninstall: true,
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("Invalid Central bundle path"));
     }
 
     // ── get_skill_detail ──────────────────────────────────────────────────────

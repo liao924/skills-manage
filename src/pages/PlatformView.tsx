@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Search, Blocks } from "lucide-react";
+import { Search, Blocks, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { usePlatformStore } from "@/stores/platformStore";
@@ -9,9 +9,17 @@ import { useCentralSkillsStore } from "@/stores/centralSkillsStore";
 import { Input } from "@/components/ui/input";
 import { UnifiedSkillCard } from "@/components/skill/UnifiedSkillCard";
 import { SkillDetailDrawer } from "@/components/skill/SkillDetailDrawer";
+import {
+  SkillFolderDrawer,
+  type SkillFolderDrawerSkill,
+} from "@/components/skill/SkillFolderDrawer";
+import { SkillFolderCard } from "@/components/skill/SkillFolderCard";
+import { SkillListModeToggle } from "@/components/skill/SkillListModeToggle";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
 import { InstallDialog } from "@/components/central/InstallDialog";
+import { useSkillListViewMode } from "@/hooks/useSkillListViewMode";
 import { formatPathForDisplay } from "@/lib/path";
+import { splitSkillsByTopLevel } from "@/lib/skillFolders";
 import { cn } from "@/lib/utils";
 import { ScannedSkill, SkillWithLinks } from "@/types";
 
@@ -52,10 +60,13 @@ export function PlatformView() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<ClaudeSourceFilter>("all");
+  const [viewMode, setViewMode] = useSkillListViewMode("platform");
   const [installTargetSkill, setInstallTargetSkill] = useState<SkillWithLinks | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [drawerSkill, setDrawerSkill] = useState<ScannedSkill | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [folderDrawerGroupPath, setFolderDrawerGroupPath] = useState<string | null>(null);
+  const [isFolderDrawerOpen, setIsFolderDrawerOpen] = useState(false);
   const [returnFocusRowKey, setReturnFocusRowKey] = useState<string | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const detailButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -141,6 +152,28 @@ export function PlatformView() {
     return skills.filter((skill) => skill.source_kind === sourceFilter);
   }, [isClaudePage, skills, sourceFilter]);
 
+  const platformFolderSplit = useMemo(
+    () =>
+      splitSkillsByTopLevel({
+        skills: sourceFilteredSkills,
+        rootPath: agent?.global_skills_dir ?? "",
+        getDirPaths: (skill) => skill.dir_path,
+      }),
+    [agent?.global_skills_dir, sourceFilteredSkills]
+  );
+  const platformFolderGroupsByPath = useMemo(
+    () =>
+      new Map(
+        platformFolderSplit.groups.map((group) => [
+          group.relativePath,
+          group,
+        ])
+      ),
+    [platformFolderSplit.groups]
+  );
+  const visibleSkills =
+    viewMode === "folders" ? platformFolderSplit.rootSkills : sourceFilteredSkills;
+
   const sourceCounts = useMemo(() => {
     const counts: Record<ClaudeSourceFilter, number> = {
       all: skills.length,
@@ -161,15 +194,32 @@ export function PlatformView() {
 
   // Filter skills by search query using useMemo
   const filteredSkills = useMemo(() => {
-    if (!searchQuery.trim()) return sourceFilteredSkills;
+    if (!searchQuery.trim()) return visibleSkills;
     const q = searchQuery.toLowerCase();
-    return sourceFilteredSkills.filter(
+    return visibleSkills.filter(
       (skill) =>
         skill.id.toLowerCase().includes(q) ||
         skill.name.toLowerCase().includes(q) ||
         skill.description?.toLowerCase().includes(q)
     );
-  }, [sourceFilteredSkills, searchQuery]);
+  }, [visibleSkills, searchQuery]);
+
+  const filteredFolderGroups = useMemo(() => {
+    if (viewMode !== "folders") return [];
+    if (!searchQuery.trim()) return platformFolderSplit.groups;
+    const q = searchQuery.toLowerCase();
+    return platformFolderSplit.groups.filter(
+      (group) =>
+        group.name.toLowerCase().includes(q) ||
+        group.path.toLowerCase().includes(q) ||
+        group.skills.some(
+          (skill) =>
+            skill.id.toLowerCase().includes(q) ||
+            skill.name.toLowerCase().includes(q) ||
+            skill.description?.toLowerCase().includes(q)
+        )
+    );
+  }, [platformFolderSplit.groups, searchQuery, viewMode]);
 
   useEffect(() => {
     if (!drawerSkill) return;
@@ -201,6 +251,36 @@ export function PlatformView() {
     setDrawerSkill(skill);
     setIsDrawerOpen(true);
   }
+
+  function handleOpenFolderDrawer(relativePath: string) {
+    setFolderDrawerGroupPath(relativePath);
+    setIsFolderDrawerOpen(true);
+  }
+
+  const folderDrawerGroup = folderDrawerGroupPath
+    ? platformFolderGroupsByPath.get(folderDrawerGroupPath)
+    : null;
+  const folderDrawerSkills = useMemo<SkillFolderDrawerSkill[]>(
+    () =>
+      (folderDrawerGroup?.skills ?? []).map((skill) => ({
+        key: getSkillRowKey(skill),
+        id: skill.id,
+        name: skill.name,
+        description: skill.description,
+        path: skill.dir_path,
+        relativePath: skill.dir_path.replace(`${folderDrawerGroup?.path ?? ""}/`, ""),
+        agentId,
+        rowId: skill.row_id ?? null,
+        sourceLabel:
+          skill.source_kind === "user"
+            ? t("platform.originUser")
+            : skill.source_kind === "plugin"
+              ? t("platform.originPlugin")
+              : skill.link_type,
+        isReadOnly: skill.is_read_only ?? false,
+      })),
+    [agentId, folderDrawerGroup, t]
+  );
 
   if (!agent) {
     return (
@@ -279,14 +359,17 @@ export function PlatformView() {
 
       {/* Search bar */}
       <div className="px-6 py-3 border-b border-border">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-          <Input
-            placeholder={t("platform.searchPlaceholder")}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 bg-muted/40"
-          />
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder={t("platform.searchPlaceholder")}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 bg-muted/40"
+            />
+          </div>
+          <SkillListModeToggle value={viewMode} onChange={setViewMode} />
         </div>
       </div>
 
@@ -308,46 +391,79 @@ export function PlatformView() {
                 : `No ${activeSourceLabel} skills installed for ${agent.display_name}`,
             })}
           />
-        ) : filteredSkills.length === 0 ? (
+        ) : filteredSkills.length === 0 && filteredFolderGroups.length === 0 ? (
           <EmptyState
             message={t("platform.noMatch", { query: searchQuery })}
           />
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {filteredSkills.map((skill) => (
-              <UnifiedSkillCard
-                key={getSkillRowKey(skill)}
-                name={skill.name}
-                description={skill.description}
-                sourceType={skill.link_type as "symlink" | "copy" | "native"}
-                originKind={skill.source_kind ?? null}
-                isReadOnly={skill.is_read_only ?? false}
-                isLoading={
-                  agentId
-                    ? (pendingSkillActionKeys[`${agentId}::${skill.id}`] ?? false)
-                    : false
-                }
-                onDetail={() => handleOpenDrawer(skill)}
-                onInstallTo={
-                  skill.is_read_only
-                    ? undefined
-                    : () => handleInstallClick(skill.id)
-                }
-                onUninstallFromPlatform={
-                  skill.is_read_only
-                    ? undefined
-                    : () => handleUninstall(skill.id)
-                }
-                uninstallFromLabel={t("platform.uninstallFromLabel", {
-                  skill: skill.name,
-                  platform: agent.display_name,
-                  defaultValue: i18n.language.startsWith("zh")
-                    ? `从 ${agent.display_name} 卸载 ${skill.name}`
-                    : `Uninstall ${skill.name} from ${agent.display_name}`,
-                })}
-                detailButtonRef={(node) => setDetailButtonRef(getSkillRowKey(skill), node)}
-              />
-            ))}
+          <div className="space-y-6">
+            {viewMode === "folders" && filteredFolderGroups.length > 0 && (
+              <section className="space-y-3" aria-label={t("skillFolder.foldersTitle")}>
+                <div className="flex items-center gap-2">
+                  <FolderOpen className="size-4 text-primary" />
+                  <h2 className="text-sm font-semibold">{t("skillFolder.foldersTitle")}</h2>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {filteredFolderGroups.map((group) => (
+                    <SkillFolderCard
+                      key={group.relativePath}
+                      name={group.name}
+                      path={group.path}
+                      skillCount={group.skillCount}
+                      previewNames={group.skills.map((skill) => skill.name)}
+                      onOpen={() => handleOpenFolderDrawer(group.relativePath)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {filteredSkills.length > 0 && (
+              <section className="space-y-3">
+                {viewMode === "folders" && (
+                  <div className="flex items-center gap-2">
+                    <Blocks className="size-4 text-primary" />
+                    <h2 className="text-sm font-semibold">{t("skillFolder.topLevelSkills")}</h2>
+                  </div>
+                )}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {filteredSkills.map((skill) => (
+                    <UnifiedSkillCard
+                      key={getSkillRowKey(skill)}
+                      name={skill.name}
+                      description={skill.description}
+                      sourceType={skill.link_type as "symlink" | "copy" | "native"}
+                      originKind={skill.source_kind ?? null}
+                      isReadOnly={skill.is_read_only ?? false}
+                      isLoading={
+                        agentId
+                          ? (pendingSkillActionKeys[`${agentId}::${skill.id}`] ?? false)
+                          : false
+                      }
+                      onDetail={() => handleOpenDrawer(skill)}
+                      onInstallTo={
+                        skill.is_read_only
+                          ? undefined
+                          : () => handleInstallClick(skill.id)
+                      }
+                      onUninstallFromPlatform={
+                        skill.is_read_only
+                          ? undefined
+                          : () => handleUninstall(skill.id)
+                      }
+                      uninstallFromLabel={t("platform.uninstallFromLabel", {
+                        skill: skill.name,
+                        platform: agent.display_name,
+                        defaultValue: i18n.language.startsWith("zh")
+                          ? `从 ${agent.display_name} 卸载 ${skill.name}`
+                          : `Uninstall ${skill.name} from ${agent.display_name}`,
+                      })}
+                      detailButtonRef={(node) => setDetailButtonRef(getSkillRowKey(skill), node)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         )}
       </div>
@@ -379,6 +495,26 @@ export function PlatformView() {
               }
             : undefined
         }
+      />
+
+      <SkillFolderDrawer
+        open={isFolderDrawerOpen}
+        title={folderDrawerGroup?.name ?? folderDrawerGroupPath ?? t("skillFolder.foldersTitle")}
+        path={folderDrawerGroup?.path}
+        skills={folderDrawerSkills}
+        loading={false}
+        onOpenChange={(open) => {
+          setIsFolderDrawerOpen(open);
+          if (!open) {
+            setFolderDrawerGroupPath(null);
+          }
+        }}
+        onInstallationsChange={async () => {
+          await Promise.all([
+            refreshCounts(),
+            agentId ? getSkillsByAgent(agentId) : Promise.resolve(),
+          ]);
+        }}
       />
     </div>
   );

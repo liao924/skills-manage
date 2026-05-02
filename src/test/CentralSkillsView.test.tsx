@@ -2,7 +2,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { CentralSkillsView } from "../pages/CentralSkillsView";
-import { AgentWithStatus, SkillWithLinks } from "../types";
+import {
+  AgentWithStatus,
+  CentralSkillBundle,
+  CentralSkillBundleDetail,
+  SkillWithLinks,
+} from "../types";
 
 // Mock stores
 vi.mock("../stores/centralSkillsStore", () => ({
@@ -46,6 +51,24 @@ vi.mock("../components/skill/SkillDetailDrawer", () => ({
         </button>
       </div>
     ) : null,
+}));
+
+vi.mock("../components/skill/SkillDetailView", () => ({
+  SkillDetailView: ({
+    skillId,
+    agentId,
+    rowId,
+  }: {
+    skillId?: string;
+    agentId?: string | null;
+    rowId?: string | null;
+  }) => (
+    <div data-testid="folder-skill-detail">
+      <div>folder-detail-skill:{skillId ?? "none"}</div>
+      <div>folder-detail-agent:{agentId ?? "none"}</div>
+      <div>folder-detail-row:{rowId ?? "none"}</div>
+    </div>
+  ),
 }));
 
 import { useCentralSkillsStore } from "../stores/centralSkillsStore";
@@ -131,10 +154,55 @@ const mockSkills: SkillWithLinks[] = [
   },
 ];
 
+const mockBundles: CentralSkillBundle[] = [
+  {
+    name: "Superpowers",
+    relativePath: "Superpowers",
+    path: "/Users/test/.agents/skills/Superpowers",
+    isSymlink: false,
+    skillCount: 2,
+    linkedAgentCount: 1,
+    readOnlyAgentCount: 0,
+  },
+];
+
+const mockBundleDetail: CentralSkillBundleDetail = {
+  bundle: mockBundles[0],
+  skills: [
+    {
+      id: "using-superpowers",
+      name: "using-superpowers",
+      description: "Use Superpowers workflows",
+      file_path: "/Users/test/.agents/skills/Superpowers/using-superpowers/SKILL.md",
+      canonical_path: "/Users/test/.agents/skills/Superpowers/using-superpowers",
+      is_central: true,
+      scanned_at: "2026-04-09T00:00:00Z",
+      linked_agents: ["claude-code"],
+      read_only_agents: [],
+    },
+    {
+      id: "writing-plans",
+      name: "writing-plans",
+      description: "Write implementation plans",
+      file_path: "/Users/test/.agents/skills/Superpowers/writing-plans/SKILL.md",
+      canonical_path: "/Users/test/.agents/skills/Superpowers/writing-plans",
+      is_central: true,
+      scanned_at: "2026-04-09T00:00:00Z",
+      linked_agents: ["cursor"],
+      read_only_agents: ["openclaw"],
+    },
+  ],
+};
+
 const mockLoadCentralSkills = vi.fn();
+const mockLoadCentralBundles = vi.fn();
+const mockLoadCentralBundleDetail = vi.fn();
+const mockClearCentralBundleDetail = vi.fn();
 const mockInstallSkill = vi.fn();
 const mockTogglePlatformLink = vi.fn();
 const mockDeleteCentralSkill = vi.fn();
+const mockPreviewDeleteCentralBundle = vi.fn();
+const mockDeleteCentralBundle = vi.fn();
 const mockRescan = vi.fn();
 const mockGetSkillsByAgent = vi.fn();
 const mockPreviewGitHubRepoImport = vi.fn();
@@ -149,15 +217,27 @@ function buildCentralStoreState(overrides = {}) {
   return {
     skills: mockSkills,
     agents: mockAgents,
+    bundles: [],
+    bundleDetail: null,
+    bundleDeletePreview: null,
     isLoading: false,
+    isLoadingBundles: false,
+    loadingBundleDetailPath: null,
     isInstalling: false,
     deletingSkillId: null,
+    deletingBundlePath: null,
     togglingAgentId: null,
     error: null,
     loadCentralSkills: mockLoadCentralSkills,
+    loadCentralBundles: mockLoadCentralBundles,
+    loadCentralBundleDetail: mockLoadCentralBundleDetail,
+    clearCentralBundleDetail: mockClearCentralBundleDetail,
     installSkill: mockInstallSkill,
     togglePlatformLink: mockTogglePlatformLink,
     deleteCentralSkill: mockDeleteCentralSkill,
+    previewDeleteCentralBundle: mockPreviewDeleteCentralBundle,
+    deleteCentralBundle: mockDeleteCentralBundle,
+    clearBundleDeletePreview: vi.fn(),
     ...overrides,
   };
 }
@@ -186,9 +266,9 @@ function buildSkillStoreState(overrides = {}) {
   };
 }
 
-function renderCentralSkillsView() {
+function renderCentralSkillsView(centralOverrides = {}) {
   mockUseCentralSkillsStore.mockImplementation((selector?: unknown) => {
-    const state = buildCentralStoreState();
+    const state = buildCentralStoreState(centralOverrides);
     if (typeof selector === "function") return selector(state);
     return state;
   });
@@ -232,6 +312,7 @@ function renderCentralSkillsView() {
 describe("CentralSkillsView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
   });
 
   // ── Header ────────────────────────────────────────────────────────────────
@@ -284,6 +365,37 @@ describe("CentralSkillsView", () => {
     renderCentralSkillsView();
     expect(screen.getByText("frontend-design")).toBeInTheDocument();
     expect(screen.getByText("code-reviewer")).toBeInTheDocument();
+  });
+
+  it("defaults to all-skills mode without showing folder cards", () => {
+    const nestedSkill = mockBundleDetail.skills[0];
+    renderCentralSkillsView({
+      bundles: mockBundles,
+      skills: [...mockSkills, nestedSkill],
+    });
+
+    expect(screen.queryByText("套件 / 文件夹")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /查看 using-superpowers 的详情/i })
+    ).toBeInTheDocument();
+  });
+
+  it("shows folders and only top-level skills in folders mode", () => {
+    window.localStorage.setItem("skills-manage.skillListViewMode.central", "folders");
+    const nestedSkill = mockBundleDetail.skills[0];
+    renderCentralSkillsView({
+      bundles: mockBundles,
+      skills: [...mockSkills, nestedSkill],
+    });
+
+    expect(screen.getByText("套件 / 文件夹")).toBeInTheDocument();
+    expect(screen.getByText("Superpowers")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /查看 frontend-design 的详情/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /查看 using-superpowers 的详情/i })
+    ).not.toBeInTheDocument();
   });
 
   it("sorts by modified time and reverses direction explicitly", async () => {
@@ -377,6 +489,167 @@ describe("CentralSkillsView", () => {
       expect(mockDeleteCentralSkill).toHaveBeenCalledWith("frontend-design", {
         cascadeUninstall: true,
       });
+    });
+  });
+
+  it("renders central skill bundles above the skill list", () => {
+    window.localStorage.setItem("skills-manage.skillListViewMode.central", "folders");
+    renderCentralSkillsView({ bundles: mockBundles });
+
+    expect(screen.getByText("套件 / 文件夹")).toBeInTheDocument();
+    expect(screen.getByText("Superpowers")).toBeInTheDocument();
+    expect(screen.getByText(/2 个技能/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /删除套件 Superpowers/i })
+    ).toBeInTheDocument();
+  });
+
+  it("opens a bundle detail drawer showing skills and platform links", async () => {
+    window.localStorage.setItem("skills-manage.skillListViewMode.central", "folders");
+    mockLoadCentralBundleDetail.mockResolvedValue(mockBundleDetail);
+    renderCentralSkillsView({
+      bundles: mockBundles,
+      bundleDetail: mockBundleDetail,
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /打开目录 Superpowers/i })
+    );
+
+    expect(mockLoadCentralBundleDetail).toHaveBeenCalledWith("Superpowers");
+    expect(
+      await screen.findByRole("dialog", { name: /Superpowers/ })
+    ).toBeInTheDocument();
+    expect(screen.getByText("using-superpowers")).toBeInTheDocument();
+    expect(screen.getByText("writing-plans")).toBeInTheDocument();
+    expect(screen.getByText("folder-detail-skill:using-superpowers")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /writing-plans/i }));
+
+    expect(screen.getByText("folder-detail-skill:writing-plans")).toBeInTheDocument();
+  });
+
+  it("keeps bundle delete icon from opening the detail drawer", async () => {
+    window.localStorage.setItem("skills-manage.skillListViewMode.central", "folders");
+    mockPreviewDeleteCentralBundle.mockResolvedValue({
+      bundle: mockBundles[0],
+      skills: mockBundleDetail.skills,
+      affectedAgents: ["claude-code", "cursor"],
+      skippedReadOnlyAgents: ["openclaw"],
+    });
+    renderCentralSkillsView({ bundles: mockBundles });
+
+    fireEvent.click(screen.getByRole("button", { name: /删除套件 Superpowers/i }));
+
+    expect(
+      await screen.findByRole("dialog", { name: /删除套件 Superpowers/i })
+    ).toBeInTheDocument();
+    expect(mockPreviewDeleteCentralBundle).toHaveBeenCalledWith("Superpowers");
+    expect(mockLoadCentralBundleDetail).not.toHaveBeenCalled();
+  });
+
+  it("previews and deletes a central skill bundle after danger confirmation", async () => {
+    window.localStorage.setItem("skills-manage.skillListViewMode.central", "folders");
+    mockPreviewDeleteCentralBundle.mockResolvedValue({
+      bundle: mockBundles[0],
+      skills: [
+        {
+          id: "using-superpowers",
+          name: "using-superpowers",
+          file_path: "/Users/test/.agents/skills/Superpowers/using-superpowers/SKILL.md",
+          canonical_path: "/Users/test/.agents/skills/Superpowers/using-superpowers",
+          is_central: true,
+          scanned_at: "2026-04-09T00:00:00Z",
+          linked_agents: ["claude-code"],
+          read_only_agents: [],
+        },
+      ],
+      affectedAgents: ["claude-code"],
+      skippedReadOnlyAgents: [],
+    });
+    mockDeleteCentralBundle.mockResolvedValue({
+      relativePath: "Superpowers",
+      removedBundlePath: "/Users/test/.agents/skills/Superpowers",
+      removedKind: "directory",
+      removedSkillIds: ["using-superpowers"],
+      uninstalledAgents: ["claude-code"],
+      skippedReadOnlyAgents: [],
+    });
+
+    mockUseCentralSkillsStore.mockImplementation((selector?: unknown) => {
+      const state = buildCentralStoreState({
+        bundles: mockBundles,
+        bundleDeletePreview: {
+          bundle: mockBundles[0],
+          skills: [
+            {
+              id: "using-superpowers",
+              name: "using-superpowers",
+              file_path: "/Users/test/.agents/skills/Superpowers/using-superpowers/SKILL.md",
+              canonical_path: "/Users/test/.agents/skills/Superpowers/using-superpowers",
+              is_central: true,
+              scanned_at: "2026-04-09T00:00:00Z",
+              linked_agents: ["claude-code"],
+              read_only_agents: [],
+            },
+          ],
+          affectedAgents: ["claude-code"],
+          skippedReadOnlyAgents: [],
+        },
+      });
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+    mockUsePlatformStore.mockImplementation((selector?: unknown) => {
+      const state = buildPlatformStoreState();
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+    mockUseSkillStore.mockImplementation((selector?: unknown) => {
+      const state = buildSkillStoreState();
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+    mockUseMarketplaceStore.mockImplementation((selector?: unknown) => {
+      const state = {
+        githubImport: {
+          isPreviewLoading: false,
+          isImporting: false,
+          preview: null,
+          importResult: null,
+          previewedRepoUrl: null,
+          error: null,
+        },
+        previewGitHubRepoImport: mockPreviewGitHubRepoImport,
+        importGitHubRepoSkills: mockImportGitHubRepoSkills,
+        resetGitHubImport: mockResetGitHubImport,
+      };
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+
+    render(
+      <MemoryRouter>
+        <CentralSkillsView />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /删除套件 Superpowers/i }));
+
+    expect(mockPreviewDeleteCentralBundle).toHaveBeenCalledWith("Superpowers");
+    expect(
+      await screen.findByRole("dialog", { name: /删除套件 Superpowers/i })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/using-superpowers/)).toBeInTheDocument();
+    expect(screen.getByText(/Claude Code/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /删除套件并卸载/i }));
+
+    await waitFor(() => {
+      expect(mockDeleteCentralBundle).toHaveBeenCalledWith("Superpowers", {
+        cascadeUninstall: true,
+      });
+      expect(mockRescan).toHaveBeenCalledTimes(1);
     });
   });
 

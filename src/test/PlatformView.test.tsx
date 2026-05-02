@@ -55,6 +55,26 @@ vi.mock("../components/skill/SkillDetailDrawer", () => ({
     ) : null,
 }));
 
+vi.mock("../components/skill/SkillFolderDrawer", () => ({
+  SkillFolderDrawer: ({
+    open,
+    title,
+    skills,
+  }: {
+    open: boolean;
+    title: string;
+    skills: Array<{ name: string }>;
+  }) =>
+    open ? (
+      <div data-testid="skill-folder-drawer">
+        <div>folder-title:{title}</div>
+        {skills.map((skill) => (
+          <div key={skill.name}>folder-skill:{skill.name}</div>
+        ))}
+      </div>
+    ) : null,
+}));
+
 import { usePlatformStore } from "../stores/platformStore";
 import { useSkillStore } from "../stores/skillStore";
 import { useCentralSkillsStore } from "../stores/centralSkillsStore";
@@ -127,6 +147,27 @@ const mockCursorSkills: ScannedSkill[] = [
     link_type: "symlink",
     symlink_target: "~/.agents/skills/cursor-helper",
     is_central: true,
+  },
+];
+
+const mockNestedPlatformSkills: ScannedSkill[] = [
+  {
+    id: "root-helper",
+    name: "root-helper",
+    description: "Top-level helper",
+    file_path: "/Users/test/.claude/skills/root-helper/SKILL.md",
+    dir_path: "/Users/test/.claude/skills/root-helper",
+    link_type: "copy",
+    is_central: false,
+  },
+  {
+    id: "nested-helper",
+    name: "nested-helper",
+    description: "Nested helper",
+    file_path: "/Users/test/.claude/skills/toolkit/nested-helper/SKILL.md",
+    dir_path: "/Users/test/.claude/skills/toolkit/nested-helper",
+    link_type: "copy",
+    is_central: false,
   },
 ];
 
@@ -323,6 +364,7 @@ function NavigationHarness() {
 describe("PlatformView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
     testNavigate = null;
     mockRefreshCounts.mockReset();
     mockUninstallSkillFromAgent.mockReset();
@@ -347,6 +389,61 @@ describe("PlatformView", () => {
     renderPlatformView();
     expect(screen.getByText("frontend-design")).toBeInTheDocument();
     expect(screen.getByText("code-reviewer")).toBeInTheDocument();
+  });
+
+  it("defaults to all-skills mode for nested platform skills", () => {
+    mockUseSkillStore.mockImplementation((selector?: unknown) => {
+      const state = buildSkillStoreState({
+        skillsByAgent: { "claude-code": mockNestedPlatformSkills },
+      });
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+
+    renderPlatformView();
+
+    expect(screen.getByText("nested-helper")).toBeInTheDocument();
+    expect(screen.queryByText("toolkit")).not.toBeInTheDocument();
+  });
+
+  it("shows platform folders and only top-level skills in folders mode", () => {
+    window.localStorage.setItem("skills-manage.skillListViewMode.platform", "folders");
+    mockUseSkillStore.mockImplementation((selector?: unknown) => {
+      const state = buildSkillStoreState({
+        skillsByAgent: { "claude-code": mockNestedPlatformSkills },
+      });
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+
+    renderPlatformView();
+
+    expect(screen.getByText("toolkit")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /查看 root-helper 的详情/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /查看 nested-helper 的详情/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens a platform folder drawer for nested skills", () => {
+    window.localStorage.setItem("skills-manage.skillListViewMode.platform", "folders");
+    mockUseSkillStore.mockImplementation((selector?: unknown) => {
+      const state = buildSkillStoreState({
+        skillsByAgent: { "claude-code": mockNestedPlatformSkills },
+      });
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+
+    renderPlatformView();
+
+    fireEvent.click(screen.getByRole("button", { name: /打开目录 toolkit|Open folder toolkit/i }));
+
+    expect(screen.getByTestId("skill-folder-drawer")).toBeInTheDocument();
+    expect(screen.getByText("folder-title:toolkit")).toBeInTheDocument();
+    expect(screen.getByText("folder-skill:nested-helper")).toBeInTheDocument();
   });
 
   it("shows source indicator on skill cards", () => {

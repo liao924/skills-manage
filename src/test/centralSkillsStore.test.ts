@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { AgentWithStatus, SkillWithLinks } from "../types";
+import {
+  AgentWithStatus,
+  CentralSkillBundle,
+  CentralSkillBundleDetail,
+  CentralSkillBundleDeletePreview,
+  SkillWithLinks,
+} from "../types";
 import * as tauriBridge from "@/lib/tauri";
 
 // Mock Tauri core before importing the store
@@ -65,6 +71,64 @@ const mockAgents: AgentWithStatus[] = [
   },
 ];
 
+const mockBundles: CentralSkillBundle[] = [
+  {
+    name: "Superpowers",
+    relativePath: "Superpowers",
+    path: "~/.agents/skills/Superpowers",
+    isSymlink: false,
+    skillCount: 2,
+    linkedAgentCount: 1,
+    readOnlyAgentCount: 0,
+  },
+];
+
+const mockBundlePreview: CentralSkillBundleDeletePreview = {
+  bundle: mockBundles[0],
+  skills: [
+    {
+      id: "using-superpowers",
+      name: "using-superpowers",
+      file_path: "~/.agents/skills/Superpowers/using-superpowers/SKILL.md",
+      canonical_path: "~/.agents/skills/Superpowers/using-superpowers",
+      is_central: true,
+      scanned_at: "2026-04-09T00:00:00Z",
+      linked_agents: ["claude-code"],
+      read_only_agents: [],
+    },
+  ],
+  affectedAgents: ["claude-code"],
+  skippedReadOnlyAgents: [],
+};
+
+const mockBundleDetail: CentralSkillBundleDetail = {
+  bundle: mockBundles[0],
+  skills: [
+    {
+      id: "using-superpowers",
+      name: "using-superpowers",
+      description: "Use Superpowers workflows",
+      file_path: "~/.agents/skills/Superpowers/using-superpowers/SKILL.md",
+      canonical_path: "~/.agents/skills/Superpowers/using-superpowers",
+      is_central: true,
+      scanned_at: "2026-04-09T00:00:00Z",
+      linked_agents: ["claude-code"],
+      read_only_agents: [],
+    },
+    {
+      id: "writing-plans",
+      name: "writing-plans",
+      description: "Write implementation plans",
+      file_path: "~/.agents/skills/Superpowers/writing-plans/SKILL.md",
+      canonical_path: "~/.agents/skills/Superpowers/writing-plans",
+      is_central: true,
+      scanned_at: "2026-04-09T00:00:00Z",
+      linked_agents: [],
+      read_only_agents: ["cursor"],
+    },
+  ],
+};
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe("centralSkillsStore", () => {
@@ -72,9 +136,15 @@ describe("centralSkillsStore", () => {
     useCentralSkillsStore.setState({
       skills: [],
       agents: [],
+      bundles: [],
+      bundleDetail: null,
+      bundleDeletePreview: null,
       isLoading: false,
+      isLoadingBundles: false,
+      loadingBundleDetailPath: null,
       isInstalling: false,
       deletingSkillId: null,
+      deletingBundlePath: null,
       togglingAgentId: null,
       error: null,
     });
@@ -87,10 +157,15 @@ describe("centralSkillsStore", () => {
     const state = useCentralSkillsStore.getState();
     expect(state.skills).toEqual([]);
     expect(state.agents).toEqual([]);
+    expect(state.bundles).toEqual([]);
+    expect(state.bundleDetail).toBeNull();
     expect(state.isLoading).toBe(false);
+    expect(state.isLoadingBundles).toBe(false);
+    expect(state.loadingBundleDetailPath).toBeNull();
     expect(state.isInstalling).toBe(false);
     expect(state.togglingAgentId).toBeNull();
     expect(state.deletingSkillId).toBeNull();
+    expect(state.deletingBundlePath).toBeNull();
     expect(state.error).toBeNull();
   });
 
@@ -129,6 +204,88 @@ describe("centralSkillsStore", () => {
     const state = useCentralSkillsStore.getState();
     expect(state.error).toContain("DB error");
     expect(state.isLoading).toBe(false);
+  });
+
+  // ── loadCentralBundles ───────────────────────────────────────────────────
+
+  it("calls get_central_skill_bundles and stores bundles", async () => {
+    vi.mocked(invoke).mockResolvedValueOnce(mockBundles);
+
+    await useCentralSkillsStore.getState().loadCentralBundles();
+
+    expect(invoke).toHaveBeenCalledWith("get_central_skill_bundles");
+    expect(useCentralSkillsStore.getState().bundles).toEqual(mockBundles);
+    expect(useCentralSkillsStore.getState().isLoadingBundles).toBe(false);
+  });
+
+  it("previews central bundle deletion", async () => {
+    vi.mocked(invoke).mockResolvedValueOnce(mockBundlePreview);
+
+    const preview = await useCentralSkillsStore
+      .getState()
+      .previewDeleteCentralBundle("Superpowers");
+
+    expect(invoke).toHaveBeenCalledWith("preview_delete_central_skill_bundle", {
+      relativePath: "Superpowers",
+    });
+    expect(preview).toEqual(mockBundlePreview);
+    expect(useCentralSkillsStore.getState().bundleDeletePreview).toEqual(mockBundlePreview);
+  });
+
+  it("loads central bundle detail with skills and links", async () => {
+    vi.mocked(invoke).mockResolvedValueOnce(mockBundleDetail);
+
+    const detail = await useCentralSkillsStore
+      .getState()
+      .loadCentralBundleDetail("Superpowers");
+
+    expect(invoke).toHaveBeenCalledWith("get_central_skill_bundle_detail", {
+      relativePath: "Superpowers",
+    });
+    expect(detail).toEqual(mockBundleDetail);
+    expect(useCentralSkillsStore.getState().bundleDetail).toEqual(mockBundleDetail);
+    expect(useCentralSkillsStore.getState().loadingBundleDetailPath).toBeNull();
+  });
+
+  it("sets error when loading central bundle detail fails", async () => {
+    vi.mocked(invoke).mockRejectedValueOnce(new Error("detail failed"));
+
+    await expect(
+      useCentralSkillsStore.getState().loadCentralBundleDetail("Superpowers")
+    ).rejects.toThrow("detail failed");
+
+    expect(useCentralSkillsStore.getState().error).toContain("detail failed");
+    expect(useCentralSkillsStore.getState().bundleDetail).toBeNull();
+    expect(useCentralSkillsStore.getState().loadingBundleDetailPath).toBeNull();
+  });
+
+  it("deletes a central bundle then refreshes skills and bundles", async () => {
+    const result = {
+      relativePath: "Superpowers",
+      removedBundlePath: "/Users/test/.agents/skills/Superpowers",
+      removedKind: "directory",
+      removedSkillIds: ["using-superpowers"],
+      uninstalledAgents: ["claude-code"],
+      skippedReadOnlyAgents: [],
+    };
+    vi.mocked(invoke)
+      .mockResolvedValueOnce(result)
+      .mockResolvedValueOnce(mockSkills)
+      .mockResolvedValueOnce([]);
+
+    const deleteResult = await useCentralSkillsStore
+      .getState()
+      .deleteCentralBundle("Superpowers", { cascadeUninstall: true });
+
+    expect(invoke).toHaveBeenCalledWith("delete_central_skill_bundle", {
+      relativePath: "Superpowers",
+      options: { cascadeUninstall: true },
+    });
+    expect(invoke).toHaveBeenCalledWith("get_central_skills");
+    expect(invoke).toHaveBeenCalledWith("get_central_skill_bundles");
+    expect(deleteResult).toEqual(result);
+    expect(useCentralSkillsStore.getState().bundles).toEqual([]);
+    expect(useCentralSkillsStore.getState().deletingBundlePath).toBeNull();
   });
 
   it("returns deterministic browser fixture data when Tauri runtime is unavailable", async () => {

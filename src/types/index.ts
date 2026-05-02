@@ -138,6 +138,41 @@ export interface DeleteCentralSkillResult {
   skippedReadOnlyAgents: string[];
 }
 
+export interface CentralSkillBundle {
+  name: string;
+  relativePath: string;
+  path: string;
+  isSymlink: boolean;
+  skillCount: number;
+  linkedAgentCount: number;
+  readOnlyAgentCount: number;
+}
+
+export interface CentralSkillBundleDeletePreview {
+  bundle: CentralSkillBundle;
+  skills: SkillWithLinks[];
+  affectedAgents: string[];
+  skippedReadOnlyAgents: string[];
+}
+
+export interface CentralSkillBundleDetail {
+  bundle: CentralSkillBundle;
+  skills: SkillWithLinks[];
+}
+
+export interface DeleteCentralSkillBundleOptions {
+  cascadeUninstall: boolean;
+}
+
+export interface DeleteCentralSkillBundleResult {
+  relativePath: string;
+  removedBundlePath: string;
+  removedKind: "directory" | "symlink" | string;
+  removedSkillIds: string[];
+  uninstalledAgents: string[];
+  skippedReadOnlyAgents: string[];
+}
+
 // ─── Collection Types ─────────────────────────────────────────────────────────
 
 export interface Collection {

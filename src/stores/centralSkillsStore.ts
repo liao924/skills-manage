@@ -3,7 +3,12 @@ import { invoke, isTauriRuntime } from "@/lib/tauri";
 import {
   AgentWithStatus,
   BatchInstallResult,
+  CentralSkillBundle,
+  CentralSkillBundleDetail,
+  CentralSkillBundleDeletePreview,
   DeleteCentralSkillOptions,
+  DeleteCentralSkillBundleOptions,
+  DeleteCentralSkillBundleResult,
   DeleteCentralSkillResult,
   SkillWithLinks,
 } from "@/types";
@@ -55,20 +60,31 @@ export const BROWSER_FIXTURE_SKILLS: SkillWithLinks[] = [
   },
 ];
 
+export const BROWSER_FIXTURE_BUNDLES: CentralSkillBundle[] = [];
+
 // ─── State ────────────────────────────────────────────────────────────────────
 
 interface CentralSkillsState {
   skills: SkillWithLinks[];
   agents: AgentWithStatus[];
+  bundles: CentralSkillBundle[];
+  bundleDetail: CentralSkillBundleDetail | null;
+  bundleDeletePreview: CentralSkillBundleDeletePreview | null;
   isLoading: boolean;
+  isLoadingBundles: boolean;
+  loadingBundleDetailPath: string | null;
   isInstalling: boolean;
   deletingSkillId: string | null;
+  deletingBundlePath: string | null;
   /** Agent ID currently being toggled (null = idle). */
   togglingAgentId: string | null;
   error: string | null;
 
   // Actions
   loadCentralSkills: () => Promise<void>;
+  loadCentralBundles: () => Promise<void>;
+  loadCentralBundleDetail: (relativePath: string) => Promise<CentralSkillBundleDetail>;
+  clearCentralBundleDetail: () => void;
   installSkill: (
     skillId: string,
     agentIds: string[],
@@ -78,6 +94,14 @@ interface CentralSkillsState {
     skillId: string,
     options: DeleteCentralSkillOptions
   ) => Promise<DeleteCentralSkillResult>;
+  previewDeleteCentralBundle: (
+    relativePath: string
+  ) => Promise<CentralSkillBundleDeletePreview>;
+  deleteCentralBundle: (
+    relativePath: string,
+    options: DeleteCentralSkillBundleOptions
+  ) => Promise<DeleteCentralSkillBundleResult>;
+  clearBundleDeletePreview: () => void;
   togglePlatformLink: (skillId: string, agentId: string) => Promise<void>;
 }
 
@@ -86,9 +110,15 @@ interface CentralSkillsState {
 export const useCentralSkillsStore = create<CentralSkillsState>((set, get) => ({
   skills: [],
   agents: [],
+  bundles: [],
+  bundleDetail: null,
+  bundleDeletePreview: null,
   isLoading: false,
+  isLoadingBundles: false,
+  loadingBundleDetailPath: null,
   isInstalling: false,
   deletingSkillId: null,
+  deletingBundlePath: null,
   togglingAgentId: null,
   error: null,
 
@@ -102,6 +132,7 @@ export const useCentralSkillsStore = create<CentralSkillsState>((set, get) => ({
       set({
         skills: BROWSER_FIXTURE_SKILLS,
         agents: BROWSER_FIXTURE_AGENTS,
+        bundles: BROWSER_FIXTURE_BUNDLES,
         isLoading: false,
       });
       return;
@@ -115,6 +146,57 @@ export const useCentralSkillsStore = create<CentralSkillsState>((set, get) => ({
     } catch (err) {
       set({ error: String(err), isLoading: false });
     }
+  },
+
+  loadCentralBundles: async () => {
+    set({ isLoadingBundles: true, error: null });
+    if (!isTauriRuntime()) {
+      set({ bundles: BROWSER_FIXTURE_BUNDLES, isLoadingBundles: false });
+      return;
+    }
+    try {
+      const bundles = await invoke<CentralSkillBundle[]>("get_central_skill_bundles");
+      set({ bundles: bundles ?? [], isLoadingBundles: false });
+    } catch (err) {
+      set({ error: String(err), isLoadingBundles: false });
+    }
+  },
+
+  loadCentralBundleDetail: async (relativePath) => {
+    set({ loadingBundleDetailPath: relativePath, error: null });
+    if (!isTauriRuntime()) {
+      const bundle =
+        get().bundles.find((candidate) => candidate.relativePath === relativePath) ?? {
+          name: relativePath,
+          relativePath,
+          path: `~/.agents/skills/${relativePath}`,
+          isSymlink: false,
+          skillCount: 0,
+          linkedAgentCount: 0,
+          readOnlyAgentCount: 0,
+        };
+      const detail: CentralSkillBundleDetail = {
+        bundle,
+        skills: [],
+      };
+      set({ bundleDetail: detail, loadingBundleDetailPath: null });
+      return detail;
+    }
+    try {
+      const detail = await invoke<CentralSkillBundleDetail>(
+        "get_central_skill_bundle_detail",
+        { relativePath }
+      );
+      set({ bundleDetail: detail, loadingBundleDetailPath: null });
+      return detail;
+    } catch (err) {
+      set({ error: String(err), bundleDetail: null, loadingBundleDetailPath: null });
+      throw err;
+    }
+  },
+
+  clearCentralBundleDetail: () => {
+    set({ bundleDetail: null, loadingBundleDetailPath: null });
   },
 
   /**
@@ -175,6 +257,85 @@ export const useCentralSkillsStore = create<CentralSkillsState>((set, get) => ({
       set({ error: String(err), deletingSkillId: null });
       throw err;
     }
+  },
+
+  previewDeleteCentralBundle: async (relativePath) => {
+    set({ error: null, bundleDeletePreview: null });
+    if (!isTauriRuntime()) {
+      const bundle =
+        get().bundles.find((candidate) => candidate.relativePath === relativePath) ?? {
+          name: relativePath,
+          relativePath,
+          path: `~/.agents/skills/${relativePath}`,
+          isSymlink: false,
+          skillCount: 0,
+          linkedAgentCount: 0,
+          readOnlyAgentCount: 0,
+        };
+      const preview: CentralSkillBundleDeletePreview = {
+        bundle,
+        skills: [],
+        affectedAgents: [],
+        skippedReadOnlyAgents: [],
+      };
+      set({ bundleDeletePreview: preview });
+      return preview;
+    }
+    try {
+      const preview = await invoke<CentralSkillBundleDeletePreview>(
+        "preview_delete_central_skill_bundle",
+        { relativePath }
+      );
+      set({ bundleDeletePreview: preview });
+      return preview;
+    } catch (err) {
+      set({ error: String(err), bundleDeletePreview: null });
+      throw err;
+    }
+  },
+
+  deleteCentralBundle: async (relativePath, options) => {
+    set({ deletingBundlePath: relativePath, error: null });
+    if (!isTauriRuntime()) {
+      const result: DeleteCentralSkillBundleResult = {
+        relativePath,
+        removedBundlePath: `~/.agents/skills/${relativePath}`,
+        removedKind: "directory",
+        removedSkillIds: [],
+        uninstalledAgents: [],
+        skippedReadOnlyAgents: [],
+      };
+      set((state) => ({
+        bundles: state.bundles.filter((bundle) => bundle.relativePath !== relativePath),
+        bundleDeletePreview: null,
+        deletingBundlePath: null,
+      }));
+      return result;
+    }
+    try {
+      const result = await invoke<DeleteCentralSkillBundleResult>(
+        "delete_central_skill_bundle",
+        { relativePath, options }
+      );
+      const [skills, bundles] = await Promise.all([
+        invoke<SkillWithLinks[]>("get_central_skills"),
+        invoke<CentralSkillBundle[]>("get_central_skill_bundles"),
+      ]);
+      set({
+        skills,
+        bundles,
+        bundleDeletePreview: null,
+        deletingBundlePath: null,
+      });
+      return result;
+    } catch (err) {
+      set({ error: String(err), deletingBundlePath: null });
+      throw err;
+    }
+  },
+
+  clearBundleDeletePreview: () => {
+    set({ bundleDeletePreview: null });
   },
 
   /**
